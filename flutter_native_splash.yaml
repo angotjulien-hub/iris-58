@@ -1,0 +1,22 @@
+# flutter_native_splash configuration
+
+# This file defines the splash screen configuration for flutter_native_splash.
+
+# Background color of the splash screen
+background_color: "#ffffff"  # Change to your desired color
+
+# Image that will be displayed on the splash screen
+image: "assets/splash.png"  # Path to your splash image
+
+# The resize mode for the image
+image_resizable: false  # If the image should be resized
+
+# The duration in milliseconds the splash screen will be shown
+# (The default is 2500ms).
+duration: 2500
+
+# Optional configurations
+# android:
+#   full_screen: true
+# ios:
+#   full_screen: true
