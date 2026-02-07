@@ -1,0 +1,20 @@
+# Flutter Linting Configuration
+
+# This is a sample `analysis_options.yaml` file for Flutter projects.
+
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Add or disable any lint rules you want here
+    # Example rules:
+    - avoid_empty_else
+    - camel_case_types
+    - constant_identifier_names
+    - prefer_single_quotes
+
+analyzer:
+  errors:
+    # Customize error severity.
+    unused_import: analyze
+    unused_local_variable: ignore
