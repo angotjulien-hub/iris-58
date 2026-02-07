@@ -1,0 +1,10 @@
+<module>
+    <component name="NewModuleRootManager">
+        <output url="file://$PROJECT_DIR$/out/production/classes" />
+        <output url="file://$PROJECT_DIR$/out/production/resources" />
+        <content>
+            <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+            <sourceFolder url="file://$MODULE_DIR$/test" isTestSource="true" />
+        </content>
+    </component>
+</module>
