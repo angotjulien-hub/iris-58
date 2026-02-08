@@ -1,18 +1,30 @@
-# Environnements Python
+# --- Environnements Python ---
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
 venv/
+build/
+dist/
 
-# Données temporaires de collecte
-data/temp_*.json
+# --- Persistence IRIS (Données nécessaires au PCC) ---
+# On force le suivi de ces fichiers car ils servent de base de données "live"
+!iris_config.json
+!heatmap_coords.json
+
+# --- Dossier Référentiel & Logs ---
+# On ignore les fichiers de flux massifs pour éviter de saturer le dépôt
+referentiel/flux_live_*.json
 logs/
+data/temp_*.json
 
-# Systèmes d'exploitation
+# --- IDE & Systèmes ---
+.vscode/
+.idea/
+*.iml
 .DS_Store
 Thumbs.db
 
-# Fichiers de configuration sensibles
+# --- Sécurité ---
 .env
 config.local.json
