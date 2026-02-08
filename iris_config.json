@@ -1,1 +1,17 @@
-{"last_update": "2026-02-08T22:50:00Z", "line": "58", "fleet_status": [], "audit_metrics": {"regularity_target": 85, "coupling_limit": 120}}
+{
+  "last_update": "2026-02-08T23:45:00Z",
+  "line": "58",
+  "fleet_status": [
+    {
+      "id": "BUS-5801",
+      "lat": 48.828,
+      "lon": 2.327,
+      "gap_front": "+01:30",
+      "status": "EN_SERVICE"
+    }
+  ],
+  "audit_metrics": {
+    "regularity_target": 85,
+    "coupling_limit": 120
+  }
+}
