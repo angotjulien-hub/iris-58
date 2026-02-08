@@ -1,31 +1,74 @@
 import pandas as pd
-import json
+import os
+from datetime import datetime
 
-class IrisAudit:
-    def __init__(self, config_path):
-        with open(config_path, 'r') as f:
-            self.config = json.load(f)
-        self.km_theorique_tour = 8.5  # Distance Vanves-Châtelet
+class IrisEngine:
+    def __init__(self, ref_folder="referentiel"):
+        self.ref_folder = ref_folder
+        self.km_par_tour = 8.5  # Distance moyenne L58
+        self.seuil_couplage = 1.5 # 150% de l'intervalle (Règle IRIS)
+
+    def select_file(self):
+        """Sélectionne le fichier selon le jour de la semaine (Data 2026)"""
+        today = datetime.now().weekday()
+        mapping = {0: "058LAV10.csv", 1: "058LAV10.csv", 2: "058LAV10.csv", 
+                   3: "058LAV10.csv", 4: "058LAV10.csv", 5: "058SAM30.csv", 6: "058DIM10.csv"}
+        return os.path.join(self.ref_folder, mapping[today])
+
+    def clean_and_load(self, file_path):
+        """Nettoie les guillemets illégaux et charge les données"""
+        try:
+            # On lit le fichier en ignorant les erreurs de guillemets (quoting=3)
+            df = pd.read_csv(file_path, sep=';', encoding='utf-8', quoting=3)
+            
+            # Nettoyage des noms de colonnes (suppression des " et espaces)
+            df.columns = [c.replace('"', '').strip() for c in df.columns]
+            
+            # Nettoyage des valeurs dans toutes les cellules (enlève les ")
+            df = df.replace('"', '', regex=True)
+            
+            return df
+        except Exception as e:
+            print(f"❌ Erreur lecture CSV : {e}")
+            return None
+
+    def calculer_audit(self, df):
+        """Calcule la performance selon la priorité Fréquence > Kilomètre"""
+        if df is None: return
         
-    def calculer_realisation(self, voitures_sorties, km_perdus_regul, km_deviation):
-        """
-        Calcule la ROT (Réalisation de l'Offre de Transport) selon la vision 2025.
-        """
-        km_prevus = voitures_sorties * self.km_theorique_tour
-        km_reels = km_prevus - km_perdus_regul + km_deviation
+        nb_tours_theoriques = len(df['Voiture'].unique()) if 'Voiture' in df.columns else len(df)
         
-        rot = (km_reels / km_prevus) * 100
-        return round(rot, 2)
+        # Simulation des données terrain (Collecte 2026)
+        tours_perdus_regul = 2  # Tours sacrifiés pour boucher un trou (Couplage)
+        km_bonus_jaures = 0.4 * (nb_tours_theoriques - tours_perdus_regul) # Déviation Jean Jaurès
+        
+        km_theo_total = nb_tours_theoriques * self.km_par_tour
+        km_reels_total = (nb_tours_theoriques - tours_perdus_regul) * self.km_par_tour + km_bonus_jaures
+        
+        rot = (km_reels_total / km_theo_total) * 100
+        
+        self.afficher_rapport(nb_tours_theoriques, tours_perdus_regul, rot, km_bonus_jaures)
 
-    def indice_regularite(self, intervalle_reel, intervalle_theo):
-        """
-        Indice clé pour l'audit : plus l'écart est grand, plus le score chute.
-        """
-        score = (intervalle_theo / intervalle_reel) * 100
-        return min(round(score, 2), 100.0)
+    def afficher_rapport(self, theo, perdus, rot, bonus):
+        print("="*40)
+        print("📊 RAPPORT AUDIT IRIS PRIME - LIGNE 58")
+        print("="*40)
+        print(f"✅ Offre théorique  : {theo} tours")
+        print(f"🔄 Régulation IRIS  : -{perdus} tours (Priorité Fréquence)")
+        print(f"🛣️ Déviation Jaurès : +{bonus:.2f} km effectués")
+        print(f"📈 Taux ROT Final   : {rot:.2f} %")
+        print("-"*40)
+        print("💡 Note Audit : La baisse de ROT est justifiée par")
+        print("   le maintien de l'intervalle au verrou 18 Juin.")
+        print("="*40)
 
-# Exemple d'utilisation pour le rapport SRIG
-audit = IrisAudit('config.json')
-# Simulation : 100 tours prévus, 2 tours perdus pour régulation fréquence, déviation Jean Jaurès active
-resultat = audit.calculer_realisation(100, 17.0, 4.0)
-print(f"Réalisation de l'Offre (ROT) : {resultat}%")
+# --- LANCEMENT DE L'ENGINE ---
+if __name__ == "__main__":
+    iris = IrisEngine()
+    target_file = iris.select_file()
+    
+    if os.path.exists(target_file):
+        data = iris.clean_and_load(target_file)
+        iris.calculer_audit(data)
+    else:
+        print(f"⚠️ Fichier {target_file} introuvable dans /referentiel")
