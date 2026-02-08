@@ -1,5 +1,4 @@
 name: IRIS Ligne 58 - Collecte Haute Frequence
-
 on:
   schedule:
     - cron: '*/5 * * * *'
@@ -9,27 +8,19 @@ jobs:
   collecte:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Recuperation du code
-        uses: actions/checkout@v4
-
-      - name: 2. Configuration de Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
-      - name: 3. Installation de Requests
-        run: pip install requests
-
-      - name: 4. Execution du script
+      - run: pip install requests
+      - name: Lancement du script
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
-        # C'est ici que l'on corrige le nom pour correspondre a ton fichier
         run: python collecte_donnees.py
-
-      - name: 5. Sauvegarde des resultats
+      - name: Sauvegarde Git
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "IRIS: Mise à jour positions automatique" || exit 0
+          git add iris_config.json
+          git commit -m "IRIS: Mise à jour positions" || exit 0
           git push
