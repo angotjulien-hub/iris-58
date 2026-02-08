@@ -1,0 +1,16 @@
+name: Génération Rapport SRIG 58
+on:
+  push:
+    paths:
+      - 'referentiel/**' # Se déclenche dès que tu modifies un CSV (LAV10, etc.)
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+      - name: Lancer l'analyse IRIS
+        run: |
+          python moteur/audit_performance.py
