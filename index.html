@@ -2,233 +2,54 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRIS v3.6 - Supervision IDFM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IRIS v3.6 - Système de Supervision</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
-        body { background: #02040a; color: #e2e8f0; font-family: 'Rajdhani', sans-serif; overflow: hidden; height: 100vh; }
+        body { background: #02040a; color: #e2e8f0; font-family: 'Rajdhani', sans-serif; overflow: hidden; height: 100vh; margin: 0; }
         .font-orbitron { font-family: 'Orbitron', sans-serif; }
         .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
         #map { height: 100%; width: 100%; background: #02040a; filter: invert(100%) hue-rotate(180deg) brightness(0.5) contrast(1.2); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #a855f7; border-radius: 10px; }
-        .btn-action { @apply flex-1 py-3 rounded-lg font-bold text-[10px] uppercase transition-all border border-white/5 hover:scale-105 active:scale-95; }
+        .btn-active { @apply active:scale-95 transition-transform; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
 
     <div id="selection-screen" class="fixed inset-0 z-[100] bg-[#02040a] flex flex-col items-center justify-center p-6 hidden">
-        <h1 class="font-orbitron text-2xl mb-8 tracking-widest text-white">SÉLECTION DU POSTE</h1>
-        <div class="flex gap-4">
-            <button onclick="window.location.search='?role=mod'" class="p-6 glass border-b-4 border-purple-500 rounded-xl">MODÉRATEUR</button>
-            <button onclick="window.location.search='?role=reg'" class="p-6 glass border-b-4 border-cyan-500 rounded-xl">RÉGULATEUR</button>
-            <button onclick="window.location.search='?role=bus'" class="p-6 glass border-b-4 border-yellow-500 rounded-xl">CHAUFFEUR</button>
+        <h1 class="font-orbitron text-2xl mb-8 tracking-widest text-cyan-500">IRIS SYSTEM SELECTION</h1>
+        <div class="grid grid-cols-1 gap-4 w-full max-w-xs">
+            <button onclick="window.location.search='?role=mod'" class="p-4 glass border-l-4 border-purple-500 text-left font-bold uppercase tracking-widest">Poste Modérateur</button>
+            <button onclick="window.location.search='?role=reg'" class="p-4 glass border-l-4 border-cyan-500 text-left font-bold uppercase tracking-widest">Poste Régulateur</button>
+            <button onclick="window.location.search='?role=bus'" class="p-4 glass border-l-4 border-yellow-500 text-left font-bold uppercase tracking-widest">Unité Mobile (Bus)</button>
         </div>
     </div>
 
-    <main id="ui-admin" class="hidden flex-1 flex flex-col p-4 gap-4">
-        <header class="flex justify-between items-center bg-zinc-900/90 p-4 rounded-2xl border border-white/5">
+    <main id="ui-admin" class="hidden flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+        <header class="flex justify-between items-center bg-zinc-900/90 p-4 rounded-2xl border border-white/5 shadow-2xl">
             <div class="flex items-center gap-4">
                 <div id="badge-role" class="bg-cyan-500 text-black px-4 py-1 font-black text-2xl skew-x-[-10deg]">58</div>
                 <div>
                     <h2 id="title-role" class="font-orbitron text-lg uppercase italic">POSTE DE CONTRÔLE</h2>
-                    <p id="subtitle-role" class="text-[8px] text-zinc-500 uppercase tracking-widest">IRIS CORE v3.6</p>
+                    <p id="subtitle-role" class="text-[8px] text-zinc-500 uppercase tracking-widest">Supervision Ligne 58</p>
                 </div>
             </div>
-            <div class="flex gap-3 items-center">
-                <div id="mod-tools" class="hidden flex items-center bg-black/40 rounded-lg p-1 border border-purple-500/30">
-                    <input id="input-msg" type="text" placeholder="Message au chauffeur..." class="bg-transparent text-[10px] px-3 outline-none w-40">
-                    <button onclick="sendBroadcast()" class="bg-purple-600 px-3 py-1 rounded text-[9px] font-bold uppercase">Envoyer</button>
-                </div>
-                <div class="bg-zinc-800 px-3 py-1.5 rounded-full border border-white/5 flex items-center gap-2">
-                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                    <span class="text-[9px] font-bold uppercase tracking-tighter">Flux IDFM Actif</span>
-                </div>
+            <div id="mod-zone" class="hidden flex items-center gap-3 bg-black/40 p-1.5 rounded-xl border border-purple-500/30">
+                <input id="input-msg" type="text" placeholder="Message broadcast..." class="bg-transparent text-[10px] px-3 outline-none w-32 md:w-48 text-white">
+                <button onclick="sendBroadcast()" class="bg-purple-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase btn-active">Diffuser</button>
             </div>
         </header>
 
         <div class="flex-1 grid grid-cols-12 gap-4 overflow-hidden">
-            <div class="col-span-8 relative rounded-[2rem] overflow-hidden border border-white/10 bg-black shadow-2xl">
+            <div class="col-span-12 lg:col-span-8 relative rounded-3xl overflow-hidden border border-white/10 shadow-inner bg-black">
                 <div id="map"></div>
             </div>
-            <div class="col-span-4 flex flex-col gap-4 overflow-hidden">
-                <div class="glass rounded-2xl p-4 flex-1 flex flex-col overflow-hidden">
-                    <h3 class="font-orbitron text-[9px] text-zinc-500 mb-3 uppercase italic">Logs Système & Messagerie</h3>
-                    <div id="console" class="flex-1 font-mono text-[10px] space-y-2 overflow-y-auto pr-2 custom-scrollbar"></div>
-                </div>
-                <div class="glass rounded-2xl p-4 border-t-2 border-orange-500/50">
-                    <button onclick="sendCommand('couplage')" class="w-full py-4 bg-orange-600/20 border border-orange-500/50 text-orange-500 font-black uppercase text-[10px] rounded-lg hover:bg-orange-600 hover:text-white mb-3 tracking-widest transition-all">
-                        ⚡ ACTION DE COUPLAGE (PRIORITÉ)
-                    </button>
-                    <div class="flex gap-2">
-                        <button onclick="sendCommand('régulation')" class="btn-action bg-zinc-800 text-cyan-400">Réguler</button>
-                        <button onclick="sendCommand('libre')" class="btn-action bg-zinc-800 text-purple-400">Fin Ordre</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <main id="ui-bus" class="hidden flex-1 flex flex-col items-center justify-center p-4 bg-[#030303]">
-        <div id="msg-overlay" class="fixed inset-x-4 top-10 z-50 hidden">
-            <div class="bg-purple-700 text-white p-5 rounded-2xl border-2 border-white shadow-[0_0_30px_rgba(168,85,247,0.5)] text-center animate-bounce">
-                <p class="text-[10px] uppercase opacity-70 mb-1">Message de la Supervision</p>
-                <p id="msg-content" class="text-xl font-black uppercase italic"></p>
-            </div>
-        </div>
-        <div class="w-full max-w-sm aspect-square bg-[#0a0a0a] border-[10px] border-[#1a1a1a] rounded-[3rem] p-10 flex flex-col justify-between shadow-2xl">
-            <div id="clock" class="text-7xl font-orbitron text-white text-center">00:00</div>
-            <div class="text-center space-y-2">
-                <div id="bus-status-ui" class="text-5xl font-black text-cyan-600 uppercase italic">Connecté</div>
-                <div id="bus-order-ui" class="text-[9px] text-zinc-500 font-mono tracking-widest uppercase">IDFM - Ligne 58</div>
-            </div>
-            <div class="bg-zinc-900/40 p-5 rounded-xl border border-white/5 grid grid-cols-2 gap-4">
-                <div class="text-center"><p class="text-[8px] text-zinc-500 uppercase font-bold">Ligne</p><p class="text-2xl font-black text-yellow-500 font-orbitron">58</p></div>
-                <div class="text-center"><p class="text-[8px] text-zinc-500 uppercase font-bold">Data GPS</p><p id="data-status" class="text-2xl font-bold text-green-500 font-orbitron">ON</p></div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        let myRole = '';
-        let map, marker, peer, conn;
-        const REG_ID = 'iris-58-pcc-central';
-        const MOD_ID = 'iris-58-moderateur-global';
-
-        // INITIALISATION
-        window.onload = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const role = urlParams.get('role');
-            if(!role) { document.getElementById('selection-screen').classList.remove('hidden'); return; }
-            initApp(role);
-        };
-
-        function initApp(role) {
-            myRole = role;
-            if(role === 'bus') {
-                document.getElementById('ui-bus').classList.remove('hidden');
-                startMachiniste();
-            } else {
-                document.getElementById('ui-admin').classList.remove('hidden');
-                if(role === 'mod') setupModUI();
-                startAdmin();
-            }
-        }
-
-        function setupModUI() {
-            document.getElementById('badge-role').className = "bg-purple-600 text-white px-4 py-1 font-black text-2xl skew-x-[-10deg]";
-            document.getElementById('title-role').innerText = "SUPERVISEUR GLOBAL";
-            document.getElementById('title-role').classList.add('text-purple-400');
-            document.getElementById('mod-tools').classList.remove('hidden');
-            document.getElementById('subtitle-role').innerText = "Garant Contrat IDFM - Accès Maître";
-        }
-
-        function startAdmin() {
-            map = L.map('map', {zoomControl: false}).setView([48.831, 2.321], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            
-            peer = new Peer(myRole === 'mod' ? MOD_ID : REG_ID);
-            peer.on('open', (id) => logConsole(`Canal ${myRole.toUpperCase()} sécurisé.`));
-            
-            peer.on('connection', (connection) => {
-                conn = connection;
-                logConsole("Liaison établie avec l'unité mobile.");
-                conn.on('data', (data) => {
-                    if(data.type === 'gps') updateRadar(data.lat, data.lon);
-                });
-            });
-        }
-
-        function updateRadar(lat, lon) {
-            if(!marker) marker = L.circleMarker([lat, lon], {radius: 10, color: '#06b6d4', weight: 4, fillColor: '#06b6d4', fillOpacity: 0.5}).addTo(map);
-            marker.setLatLng([lat, lon]);
-            map.panTo([lat, lon], {animate: true});
-        }
-
-        function sendCommand(action) {
-            if(!conn || !conn.open) return logConsole("Erreur: Bus déconnecté.");
-            conn.send({type: 'order', action: action, from: myRole});
-            logConsole(`Ordre [${action.toUpperCase()}] transmis.`);
-        }
-
-        function sendBroadcast() {
-            const txt = document.getElementById('input-msg').value;
-            if(!txt || !conn) return;
-            conn.send({type: 'msg', text: txt});
-            logConsole(`Message envoyé: ${txt}`);
-            document.getElementById('input-msg').value = '';
-        }
-
-        function logConsole(msg) {
-            const c = document.getElementById('console');
-            c.innerHTML = `<div class="pb-1 border-b border-white/5"><span class="opacity-30">[${new Date().toLocaleTimeString()}]</span> ${msg}</div>` + c.innerHTML;
-        }
-
-        function startMachiniste() {
-            peer = new Peer('BUS-58-UNIT');
-            peer.on('open', () => {
-                // Tente de se connecter au PCC (Régulateur)
-                const c = peer.connect(REG_ID);
-                setupBusEvents(c);
-            });
-            // Écoute aussi les ordres directs (du Modérateur par exemple)
-            peer.on('connection', (c) => setupBusEvents(c));
-        }
-
-        function setupBusEvents(c) {
-            c.on('open', () => { 
-                conn = c;
-                document.getElementById('data-status').innerText = "LIVE";
-                // Envoi immédiat des données dès la connexion (Instruction 08/02)
-                sendGPS();
-            });
-            c.on('data', (data) => {
-                if(data.type === 'order') handleBusOrder(data.action);
-                if(data.type === 'msg') showMessage(data.text);
-            });
-        }
-
-        function handleBusOrder(action) {
-            const ui = document.getElementById('bus-status-ui');
-            if(action === 'couplage') {
-                document.body.style.background = "#2a0000";
-                ui.innerText = "COUPLAGE";
-                ui.className = "text-6xl font-black text-orange-500 animate-pulse";
-            } else if(action === 'libre') {
-                document.body.style.background = "#030303";
-                ui.innerText = "EN SERVICE";
-                ui.className = "text-5xl font-black text-cyan-600";
-            } else if(action === 'régulation') {
-                document.body.style.background = "#001a2a";
-                ui.innerText = "ATTENTE";
-                ui.className = "text-6xl font-black text-blue-400";
-            }
-        }
-
-        function showMessage(txt) {
-            const div = document.getElementById('msg-overlay');
-            document.getElementById('msg-content').innerText = txt;
-            div.classList.remove('hidden');
-            setTimeout(() => div.classList.add('hidden'), 8000);
-        }
-
-        function sendGPS() {
-            if (navigator.geolocation && conn && conn.open) {
-                navigator.geolocation.getCurrentPosition(p => {
-                    conn.send({type: 'gps', lat: p.coords.latitude, lon: p.coords.longitude});
-                });
-            }
-        }
-
-        setInterval(sendGPS, 4000);
-        setInterval(() => {
-            const t = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
-            document.getElementById('clock').innerText = t;
-        }, 1000);
-    </script>
-</body>
-</html>
+            <div class="col-span-12 lg:col-span-4 flex flex-col gap-4 overflow-hidden">
+                <div class="glass rounded-2xl p-4 flex-1 flex flex-col overflow-hidden border-t-2 border-cyan-500/50">
+                    <h3 class="font-orbitron text-[9px] text-zinc-500 mb-3 uppercase tracking-tighter italic">Historique des évènements</h3>
+                    <div id="console" class="flex-
