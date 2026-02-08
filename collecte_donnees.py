@@ -1,35 +1,38 @@
-import os
-import time
-import requests # Assurez-vous que cette bibliothèque est utilisée pour votre API
+name: IRIS Ligne 58 - Collecte Haute Frequence
 
-# 1. Récupération sécurisée du token
-TOKEN = os.getenv('COLLECTION_TOKEN')
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
-def effectuer_la_collecte():
-    """
-    Logique principale de récupération des positions des chauffeurs.
-    """
-    if not TOKEN:
-        print("Erreur : COLLECTION_TOKEN manquant dans les secrets.")
-        return
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
     
-    print(f"[{time.strftime('%H:%M:%S')}] Tentative de collecte des positions...")
-    
-    # --- INSÉREZ VOTRE LOGIQUE D'API ICI ---
-    # Exemple : 
-    # response = requests.get("URL_DE_VOTRE_API", headers={"Authorization": f"Bearer {TOKEN}"})
-    # ---------------------------------------
-    
-    print("Données récupérées avec succès pour la Ligne 58.")
+    steps:
+      - name: 1. Recuperation du code
+        uses: actions/checkout@v4
 
-# 2. Boucle pour simuler une fréquence à la minute
-# Le workflow GitHub lance ce script toutes les 5 minutes
-for i in range(5):
-    effectuer_la_collecte()
-    
-    # On attend 60 secondes avant la prochaine collecte, 
-    # sauf à la dernière itération pour laisser le workflow se terminer.
-    if i < 4:
-        time.sleep(60)
+      - name: 2. Configuration de Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-print("Cycle de 5 minutes terminé. Transmission au dépôt GitHub.")
+      - name: 3. Installation de Requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: 4. Execution du script
+        env:
+          COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
+        # Suppression des espaces et utilisation du nom exact du fichier
+        run: python collecte_donnees.py
+
+      - name: 5. Sauvegarde des resultats
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "IRIS: Mise à jour positions automatique" || exit 0
+          git push
