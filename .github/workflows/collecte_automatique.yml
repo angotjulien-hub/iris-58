@@ -23,6 +23,7 @@ jobs:
       - name: 4. Execution du script
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
+        # C'est ici que l'on corrige le nom pour correspondre a ton fichier
         run: python collecte_donnees.py
 
       - name: 5. Sauvegarde des resultats
