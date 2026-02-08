@@ -1,38 +1,18 @@
-name: IRIS Ligne 58 - Collecte Haute Frequence
+import os
+import time
 
-on:
-  schedule:
-    - cron: '*/5 * * * *'
-  workflow_dispatch:
+TOKEN = os.getenv('COLLECTION_TOKEN')
 
-jobs:
-  collecte:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: 1. Recuperation du code
-        uses: actions/checkout@v4
+def effectuer_la_collecte():
+    if not TOKEN:
+        print("Erreur : COLLECTION_TOKEN manquant.")
+        return
+    print(f"[{time.strftime('%H:%M:%S')}] Collecte Ligne 58 en cours...")
+    # Ici, tes données seront traitées
 
-      - name: 2. Configuration de Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+for i in range(5):
+    effectuer_la_collecte()
+    if i < 4:
+        time.sleep(60)
 
-      - name: 3. Installation de Requests
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-
-      - name: 4. Execution du script
-        env:
-          COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
-        # Suppression des espaces et utilisation du nom exact du fichier
-        run: python collecte_donnees.py
-
-      - name: 5. Sauvegarde des resultats
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "IRIS: Mise à jour positions automatique" || exit 0
-          git push
+print("Cycle terminé.")
