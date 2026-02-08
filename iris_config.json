@@ -1,9 +1,1 @@
-{
-    "last_update": "2026-02-08T22:50:00Z",
-    "line": "58",
-    "fleet_status": [],
-    "audit_metrics": {
-        "regularity_target": 85,
-        "coupling_limit": 120
-    }
-}
+{"last_update": "2026-02-08T22:50:00Z", "line": "58", "fleet_status": [], "audit_metrics": {"regularity_target": 85, "coupling_limit": 120}}
