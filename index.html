@@ -1,38 +1,63 @@
-<script>
-    // CONFIGURATION CRITIQUE
-    const REG_ID = 'IRIS-58-PCC-GLOBAL';
-    let fleet = {};
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IRIS v3.1 - PCC L58</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
-    // FONCTION DE COLLECTE AUTOMATIQUE (Lien avec Python)
-    function syncToDatabase(busId, data) {
-        // Cette fonction simule l'envoi vers le repo via API ou PeerJS
-        const payload = {
-            id: busId,
-            timestamp: new Date().toISOString(),
-            lat: data.lat,
-            lon: data.lon,
-            gap_front: data.gap_front || "00:00",
-            status: data.status || "NORMAL"
-        };
+    <style>
+        /* CSS de la Base 17h14 */
+        body { margin: 0; background: #000; font-family: 'Orbitron', sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; background: #0a0a0a; }
         
-        // Envoi au PCC pour archivage
-        if (conn && conn.open) {
-            conn.send({ type: 'archive_data', payload: payload });
+        .bus-ping {
+            width: 12px;
+            height: 12px;
+            background: #00f2ff;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #00f2ff;
+            animation: pulse 1.5s infinite;
         }
-        console.log("Données envoyées pour collecte_donnees.py", payload);
-    }
 
-    // Mise à jour du radar avec calcul d'écart réel
-    function updateFleet(id, data) {
-        if(!fleet[id]) {
-            fleet[id] = { 
-                marker: L.marker([data.lat, data.lon], {
-                    icon: L.divIcon({className:'', html:'<div class="bus-ping"></div>'})
-                }).addTo(map) 
-            };
-            logConsole(`UNITÉ ${id} EN LIGNE - AUDIT ACTIF`);
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
         }
-        fleet[id].marker.setLatLng([data.lat, data.lon]);
-        syncToDatabase(id, data); // Enregistrement
-    }
-</script>
+
+        #reg-console {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+            font-size: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div id="reg-console">
+        <div>> INITIALISATION IRIS CORE...</div>
+    </div>
+
+    <script>
+        // ... ICI TU COLLES TOUT LE SCRIPT QUE TU VIENS DE ME MONTRER ...
+        // (Copie-colle exactement ton bloc de <script> à </script> ici)
+    </script>
+
+</body>
+</html>
