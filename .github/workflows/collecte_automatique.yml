@@ -35,11 +35,19 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          # 1. On se synchronise d'abord (très important)
+          # 1. On met les modifs du script de côté temporairement
+          git stash
+          
+          # 2. On récupère les dernières mises à jour du dépôt
           git pull --rebase origin main
           
-          # 2. On ajoute les fichiers modifiés par le script Python
+          # 3. On récupère nos données du stash
+          git stash pop || echo "Pas de changements à récupérer"
+          
+          # 4. On enregistre tout et on envoie
           git add iris_config.json
+          git commit -m "IRIS: Mise à jour positions automatique [skip ci]" || exit 0
+          git push origin main
           
           # 3. On valide et on envoie
           git commit -m "IRIS: Mise à jour positions automatique [skip ci]" || exit 0
