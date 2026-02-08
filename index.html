@@ -2,8 +2,8 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRIS v3.1 - Live Radar L58</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IRIS CORE v4.8 - L58 System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -11,178 +11,197 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
         body { background: #02040a; color: #e2e8f0; font-family: 'Rajdhani', sans-serif; overflow: hidden; height: 100vh; }
-        .font-orbitron { font-family: 'Orbitron', sans-serif; }
         .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); }
-        #map { height: 100%; width: 100%; background: #02040a; filter: invert(100%) hue-rotate(180deg) brightness(0.6) contrast(0.9); }
-        .radar-container { position: relative; width: 100%; height: 100%; border-radius: 20px; overflow: hidden; border: 2px solid #06b6d433; }
-        .radar-sweep { position: absolute; inset: 0; z-index: 10; pointer-events: none; background: conic-gradient(from 0deg, transparent 80%, rgba(6, 182, 212, 0.2) 100%); animation: rotate 4s linear infinite; }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .pupitre { background: #111; border: 8px solid #222; border-radius: 20px; box-shadow: inset 0 0 30px #000; }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        #map-reg, #map-bus { height: 100%; width: 100%; background: #02040a; filter: invert(100%) hue-rotate(180deg) brightness(0.7); }
+        .emergency-active { animation: emergency-flash 0.5s infinite alternate; }
+        @keyframes emergency-flash { from { background: #02040a; } to { background: #450a0a; } }
+        .status-blink { animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex flex-col h-screen transition-colors duration-500" id="main-body">
 
-    <div id="selection-screen" class="fixed inset-0 z-[100] bg-[#02040a] flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="font-orbitron text-3xl mb-10 tracking-[0.3em] text-white">IRIS <span class="text-cyan-500 text-4xl">CORE</span></h1>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-            <button onclick="initApp('reg')" class="glass p-10 rounded-2xl border-b-4 border-cyan-500 hover:bg-cyan-500/10 transition-all">
-                <span class="text-4xl block mb-2">📡</span>
-                <span class="font-bold text-xl uppercase tracking-widest text-cyan-400">Régulateur SRG</span>
+    <div id="selection-screen" class="fixed inset-0 z-[100] bg-[#02040a] flex flex-col items-center justify-center p-6">
+        <h1 class="font-orbitron text-4xl mb-12 tracking-[0.4em] text-white">IRIS <span class="text-cyan-500">CORE</span></h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl">
+            <button onclick="initApp('reg')" class="glass p-12 rounded-3xl border-b-8 border-cyan-600 hover:scale-105 transition-all text-center">
+                <span class="text-5xl block mb-4">🛰️</span>
+                <span class="font-orbitron text-xl text-cyan-400">PCC OPÉRATEUR</span>
             </button>
-            <button onclick="initApp('bus')" class="glass p-10 rounded-2xl border-b-4 border-yellow-500 hover:bg-yellow-500/10 transition-all">
-                <span class="text-4xl block mb-2">🚌</span>
-                <span class="font-bold text-xl uppercase tracking-widest text-yellow-400">Conducteur L58</span>
+            <button onclick="initApp('bus')" class="glass p-12 rounded-3xl border-b-8 border-yellow-600 hover:scale-105 transition-all text-center">
+                <span class="text-5xl block mb-4">🚌</span>
+                <span class="font-orbitron text-xl text-yellow-500">POSTE CONDUITE</span>
             </button>
         </div>
     </div>
 
-    <main id="ui-reg" class="hidden flex-1 flex flex-col p-4">
-        <div class="flex justify-between items-center mb-4 bg-zinc-900/50 p-4 rounded-xl border border-white/5">
-            <div>
-                <span class="bg-yellow-400 text-black px-2 py-0.5 font-bold mr-2">58</span>
-                <span class="font-orbitron text-cyan-500 uppercase text-sm">Radar Magnétique IRIS</span>
+    <main id="ui-reg" class="hidden flex-1 flex flex-col p-4 gap-4">
+        <header class="flex justify-between items-center glass p-4 rounded-2xl border-cyan-500/20">
+            <div class="flex items-center gap-4">
+                <div class="bg-yellow-400 text-black px-4 py-1 font-black rounded text-xl">58</div>
+                <h2 class="font-orbitron text-cyan-500 text-lg uppercase">Surveillance Flotte</h2>
             </div>
-            <div id="status-tag" class="text-[10px] uppercase font-bold text-cyan-600 animate-pulse">Scan Fréquence...</div>
-        </div>
+            <div id="status-indicator" class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-cyan-500 status-blink"></div>
+                <span class="text-[10px] font-bold text-cyan-500 uppercase tracking-widest">IRIS Online</span>
+            </div>
+        </header>
 
         <div class="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
-            <div class="col-span-3 radar-container">
-                <div id="map"></div>
-                <div class="radar-sweep"></div>
+            <div class="col-span-3 relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                <div id="map-reg"></div>
             </div>
-            <div class="flex flex-col gap-4">
-                <div class="glass p-4 rounded-xl flex-1 overflow-y-auto">
-                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Flux de données</h4>
-                    <div id="reg-console" class="font-mono text-[10px] text-cyan-500 space-y-1"></div>
+            <aside class="flex flex-col gap-4">
+                <div id="bus-list" class="flex-1 overflow-y-auto space-y-3">
+                    </div>
+                <div class="glass p-4 rounded-2xl h-40 overflow-y-auto text-[10px] font-mono text-cyan-400 italic" id="reg-console">
+                    [SYSTEM READY]
                 </div>
-                <button onclick="triggerCouplage()" class="bg-red-900/40 border border-red-500 text-red-500 py-6 rounded-xl font-black uppercase hover:bg-red-600 hover:text-white transition-all">
-                    Urgence Couplage
-                </button>
-            </div>
+            </aside>
         </div>
     </main>
 
-    <main id="ui-bus" class="hidden flex-1 flex items-center justify-center p-4">
-        <div class="pupitre w-full max-w-md aspect-[4/3] p-8 flex flex-col justify-between text-center relative">
-            <div class="text-6xl font-orbitron text-white py-4" id="clock">00:00</div>
-            <div>
-                <h2 id="bus-label" class="text-4xl font-black text-cyan-500 uppercase">En Ligne</h2>
-                <p id="bus-sub" class="text-sm text-gray-500 mt-2 font-mono italic">Collecte de données activée</p>
+    <main id="ui-bus" class="hidden flex-1 flex flex-col p-2 gap-2 bg-[#050505]">
+        <div class="grid grid-cols-3 gap-2 h-20">
+            <div class="glass rounded-xl p-2 border-l-4 border-yellow-500 flex flex-col justify-center">
+                <p class="text-[8px] text-zinc-500 uppercase font-bold">Précédent (N-1)</p>
+                <div class="flex justify-between items-baseline"><span id="gap-front-time" class="text-lg font-orbitron text-white">--:--</span><span id="gap-front-dist" class="text-[10px] text-yellow-500">0m</span></div>
             </div>
-            <div class="grid grid-cols-2 gap-4 mt-6">
-                <div class="bg-zinc-800 p-4 rounded-xl">
-                    <span class="text-[10px] block text-gray-400">SIGNAL</span>
-                    <span id="sig-val" class="text-xl font-bold text-green-500">INIT...</span>
-                </div>
-                <div class="bg-zinc-800 p-4 rounded-xl">
-                    <span class="text-[10px] block text-gray-400">ID IRIS</span>
-                    <span id="id-val" class="text-xl font-bold text-white">#--</span>
-                </div>
+            <div class="glass rounded-xl p-2 border-t-4 border-cyan-500 flex flex-col items-center justify-center">
+                <p class="text-[8px] text-cyan-500 uppercase font-bold">L58</p>
+                <span id="bus-id-label" class="text-xs font-bold text-white tracking-widest">--</span>
             </div>
+            <div class="glass rounded-xl p-2 border-r-4 border-green-500 text-right flex flex-col justify-center">
+                <p class="text-[8px] text-zinc-500 uppercase font-bold">Suivant (N+1)</p>
+                <div class="flex justify-between items-baseline flex-row-reverse"><span id="gap-back-time" class="text-lg font-orbitron text-white">--:--</span><span id="gap-back-dist" class="text-[10px] text-green-500">0m</span></div>
+            </div>
+        </div>
+
+        <div class="relative flex-1 rounded-2xl overflow-hidden border border-white/10">
+            <div id="map-bus"></div>
+            <div class="absolute bottom-4 left-4 right-4 glass p-4 rounded-2xl border-t-4 border-cyan-500 z-[1000]">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] text-zinc-400 font-bold uppercase">Prochain Arrêt : <span class="text-white">PONT DE LA VALLÉE</span></span>
+                    <span class="text-cyan-400 font-orbitron text-[10px]" id="clock-bus">00:00</span>
+                </div>
+                <div class="h-1.5 bg-zinc-800 rounded-full"><div id="progress" class="h-full bg-cyan-500 w-1/3 shadow-[0_0_10px_#06b6d4]"></div></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 h-16">
+            <button onclick="triggerEmergency()" class="bg-red-900/40 rounded-xl flex items-center justify-center border-b-4 border-red-600 text-[10px] font-bold">🚨 COUPLAGE</button>
+            <button class="glass rounded-xl flex items-center justify-center border-b-4 border-blue-600 text-[10px] font-bold uppercase">Appel</button>
+            <button class="glass rounded-xl flex items-center justify-center border-b-4 border-zinc-600 text-[10px] font-bold uppercase">Régulez</button>
+            <button class="glass rounded-xl flex items-center justify-center border-b-4 border-green-600 text-[10px] font-bold uppercase">OK</button>
         </div>
     </main>
 
     <script>
-        let myRole = '';
-        let map, marker, peer, conn;
-        const REG_ID = 'iris-58-pcc-central';
+        let myRole = '', peer = null, conn = null, map = null, marker = null;
+        const REG_ID = 'iris-58-pcc-central-2026';
+        let fleet = {}; 
 
         function initApp(role) {
             myRole = role;
             document.getElementById('selection-screen').classList.add('hidden');
-            if(role === 'reg') {
-                document.getElementById('ui-reg').classList.remove('hidden');
-                startRegulateur();
-            } else {
-                document.getElementById('ui-bus').classList.remove('hidden');
-                startMachiniste();
-            }
+            document.getElementById(`ui-${role}`).classList.remove('hidden');
+            role === 'reg' ? startReg() : startBus();
         }
 
-        // --- LOGIQUE REGULATEUR ---
-        function startRegulateur() {
-            map = L.map('map', {zoomControl: false}).setView([48.83, 2.33], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            
-            peer = new Peer(REG_ID);
-            peer.on('open', () => logConsole("Radar prêt. ID: " + REG_ID));
-            
-            peer.on('connection', (connection) => {
-                conn = connection;
-                logConsole("Bus détecté sur la ligne.");
-                conn.on('data', (data) => {
-                    if(data.type === 'gps') {
-                        updateRadar(data.lat, data.lon);
-                        logConsole(`Position reçue: ${data.lat.toFixed(4)}, ${data.lon.toFixed(4)}`);
-                    }
+        // --- MOTEUR RÉGULATEUR ---
+        function startReg() {
+            setTimeout(() => {
+                map = L.map('map-reg', {zoomControl: false}).setView([48.8285, 2.3061], 15);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+                
+                peer = new Peer(REG_ID);
+                peer.on('connection', (c) => {
+                    c.on('data', (data) => handleData(data, c.peer, c));
                 });
-            });
+            }, 200);
         }
 
-        function updateRadar(lat, lon) {
-            if(!marker) {
-                marker = L.circleMarker([lat, lon], {radius: 8, color: '#06b6d4', fillColor: '#06b6d4', fillOpacity: 0.8}).addTo(map);
-                marker.bindTooltip("BUS 58-ACTIVE", {permanent: true, direction: 'right'});
+        function handleData(data, senderId, connection) {
+            if(data.type === 'gps') {
+                if(!fleet[senderId]) logConsole(`Liaison avec ${senderId} établie`);
+                fleet[senderId] = { lat: data.lat, lon: data.lon, lastSeen: new Date(), conn: connection };
+                updateRegUI(senderId);
+                broadcastFleet();
             }
-            marker.setLatLng([lat, lon]);
-            map.panTo([lat, lon]);
         }
 
-        // --- LOGIQUE MACHINISTE ---
-        function startMachiniste() {
-            const myId = 'BUS-' + Math.floor(Math.random()*999);
-            document.getElementById('id-val').innerText = myId;
-            peer = new Peer(myId);
+        function updateRegUI(id) {
+            const list = document.getElementById('bus-list');
+            let el = document.getElementById(`list-${id}`);
+            if(!el) {
+                el = document.createElement('div');
+                el.id = `list-${id}`;
+                el.className = "glass p-4 rounded-xl border-l-4 border-cyan-500 flex justify-between";
+                list.appendChild(el);
+            }
+            el.innerHTML = `<span class="font-bold text-white">${id}</span><span class="text-cyan-500 font-mono text-xs">EN LIGNE</span>`;
+        }
 
-            peer.on('open', () => {
-                document.getElementById('sig-val').innerText = "OK";
-                // On tente de se connecter au PCC
-                const connectToPCC = () => {
-                    conn = peer.connect(REG_ID);
-                    conn.on('open', () => {
-                        document.getElementById('bus-label').innerText = "CONNECTÉ";
-                        document.getElementById('bus-label').className = "text-4xl font-black text-green-500 uppercase";
-                    });
-                };
-                setTimeout(connectToPCC, 1000);
-            });
-
-            setInterval(() => {
-                if (navigator.geolocation && conn && conn.open) {
-                    navigator.geolocation.getCurrentPosition((p) => {
-                        conn.send({type: 'gps', lat: p.coords.latitude, lon: p.coords.longitude});
-                    });
+        function broadcastFleet() {
+            const ids = Object.keys(fleet);
+            ids.forEach(id => {
+                const c = fleet[id].conn;
+                if(c && c.open) {
+                    // Ici on simule le calcul d'écart pour la démo
+                    c.send({type: 'fleet_sync', front: {time: '4:20', dist: '850m'}, back: {time: '6:15', dist: '1.2km'}});
                 }
-            }, 3000);
-
-            // Ecoute des ordres de couplage
-            peer.on('connection', (c) => {
-                c.on('data', (data) => {
-                    if(data.action === 'couplage') {
-                        document.body.style.background = "#450a0a";
-                        document.getElementById('bus-label').innerText = "COUPLAGE !";
-                        document.getElementById('bus-label').classList.add('animate-bounce');
-                    }
-                });
             });
         }
 
-        function triggerCouplage() {
-            if(conn) {
-                conn.send({action: 'couplage'});
-                logConsole("ORDRE DE COUPLAGE ENVOYÉ");
-            }
+        // --- MOTEUR MACHINISTE ---
+        function startBus() {
+            const busId = 'L58-' + Math.floor(Math.random()*900+100);
+            document.getElementById('bus-id-label').innerText = busId;
+            
+            setTimeout(() => {
+                map = L.map('map-bus', {zoomControl: false}).setView([48.8285, 2.3061], 16);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+                marker = L.circleMarker([48.8285, 2.3061], {radius: 8, color: '#06b6d4', fillOpacity: 1}).addTo(map);
+
+                peer = new Peer(busId);
+                peer.on('open', () => {
+                    conn = peer.connect(REG_ID);
+                    setupGps();
+                });
+
+                peer.on('connection', (c) => {
+                    c.on('data', (d) => {
+                        if(d.type === 'fleet_sync') {
+                            document.getElementById('gap-front-time').innerText = d.front.time;
+                            document.getElementById('gap-front-dist').innerText = d.front.dist;
+                            document.getElementById('gap-back-time').innerText = d.back.time;
+                            document.getElementById('gap-back-dist').innerText = d.back.dist;
+                        }
+                    });
+                });
+            }, 200);
         }
 
-        function logConsole(msg) {
+        function setupGps() {
+            navigator.geolocation.watchPosition(p => {
+                const pos = [p.coords.latitude, p.coords.longitude];
+                marker.setLatLng(pos);
+                map.panTo(pos);
+                if(conn && conn.open) conn.send({type: 'gps', lat: pos[0], lon: pos[1]});
+            }, null, {enableHighAccuracy: true});
+        }
+
+        function logConsole(m) {
             const c = document.getElementById('reg-console');
-            c.innerHTML = `<div>> ${msg}</div>` + c.innerHTML;
+            c.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${m}</div>` + c.innerHTML;
         }
 
         setInterval(() => {
-            const n = new Date();
-            const t = n.getHours().toString().padStart(2,'0') + ":" + n.getMinutes().toString().padStart(2,'0');
-            if(document.getElementById('clock')) document.getElementById('clock').innerText = t;
+            const now = new Date();
+            const time = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0');
+            if(document.getElementById('clock')) document.getElementById('clock').innerText = time;
+            if(document.getElementById('clock-bus')) document.getElementById('clock-bus').innerText = time;
         }, 1000);
     </script>
 </body>
