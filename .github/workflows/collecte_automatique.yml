@@ -4,23 +4,10 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write  # Autorise explicitement l'écriture sur le dépôt
+
 jobs:
   collecte:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - run: pip install requests
-      - name: Lancement du script
-        env:
-          COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
-        run: python collecte_donnees.py
-      - name: Sauvegarde Git
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add iris_config.json
-          git commit -m "IRIS: Mise à jour positions" || exit 0
-          git push
+# ... reste du code ...
