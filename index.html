@@ -3,187 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRIS v3.1 - Live Radar L58</title>
+    <title>IRIS v3.0 - Système de Supervision</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
-        body { background: #02040a; color: #e2e8f0; font-family: 'Rajdhani', sans-serif; overflow: hidden; height: 100vh; }
-        .font-orbitron { font-family: 'Orbitron', sans-serif; }
-        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); }
-        #map { height: 100%; width: 100%; background: #02040a; filter: invert(100%) hue-rotate(180deg) brightness(0.6) contrast(0.9); }
-        .radar-container { position: relative; width: 100%; height: 100%; border-radius: 20px; overflow: hidden; border: 2px solid #06b6d433; }
-        .radar-sweep { position: absolute; inset: 0; z-index: 10; pointer-events: none; background: conic-gradient(from 0deg, transparent 80%, rgba(6, 182, 212, 0.2) 100%); animation: rotate 4s linear infinite; }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .pupitre { background: #111; border: 8px solid #222; border-radius: 20px; box-shadow: inset 0 0 30px #000; }
+        #map { height: 500px; width: 100%; border-radius: 12px; }
+        .status-online { color: #10b981; }
+        .status-offline { color: #ef4444; }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="bg-zinc-100 p-4 font-sans">
 
-    <div id="selection-screen" class="fixed inset-0 z-[100] bg-[#02040a] flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="font-orbitron text-3xl mb-10 tracking-[0.3em] text-white">IRIS <span class="text-cyan-500 text-4xl">CORE</span></h1>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-            <button onclick="initApp('reg')" class="glass p-10 rounded-2xl border-b-4 border-cyan-500 hover:bg-cyan-500/10 transition-all">
-                <span class="text-4xl block mb-2">📡</span>
-                <span class="font-bold text-xl uppercase tracking-widest text-cyan-400">Régulateur SRG</span>
-            </button>
-            <button onclick="initApp('bus')" class="glass p-10 rounded-2xl border-b-4 border-yellow-500 hover:bg-yellow-500/10 transition-all">
-                <span class="text-4xl block mb-2">🚌</span>
-                <span class="font-bold text-xl uppercase tracking-widest text-yellow-400">Conducteur L58</span>
-            </button>
+    <div class="max-w-6xl mx-auto space-y-6">
+        <header class="bg-white p-6 rounded-xl shadow-sm flex justify-between items-center border-t-4 border-blue-600">
+            <div>
+                <h1 class="text-2xl font-bold text-zinc-800">Système IRIS <span class="text-blue-600">3.0</span></h1>
+                <p class="text-sm text-zinc-500">Collecte de données - Ligne 58</p>
+            </div>
+            <div id="connection-status" class="text-sm font-bold uppercase tracking-widest status-offline">Hors Ligne</div>
+        </header>
+
+        <div id="main-ui" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div id="mod-view" class="lg:col-span-2 space-y-4">
+                <div class="bg-white p-2 rounded-xl shadow-sm">
+                    <div id="map"></div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm h-40 overflow-y-auto font-mono text-xs text-zinc-600" id="logs">
+                    [SYSTÈME] En attente d'initialisation...
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div id="reg-controls" class="bg-white p-6 rounded-xl shadow-sm space-y-4">
+                    <h2 class="font-bold text-zinc-800 border-b pb-2">Commandes</h2>
+                    <button onclick="sendAction('couplage')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg transition">COUPLAGE</button>
+                    <button onclick="sendAction('normal')" class="w-full bg-zinc-800 hover:bg-black text-white font-bold py-3 rounded-lg transition">RETOUR NORMAL</button>
+                    <hr>
+                    <input id="msg-input" type="text" placeholder="Message au bus..." class="w-full border p-2 rounded">
+                    <button onclick="sendMsg()" class="w-full bg-blue-600 text-white py-2 rounded">Envoyer Message</button>
+                </div>
+
+                <div id="bus-screen" class="bg-zinc-900 text-white p-8 rounded-2xl shadow-2xl text-center hidden">
+                    <div class="text-4xl font-black mb-4" id="bus-display">EN SERVICE</div>
+                    <div id="bus-msg-box" class="bg-blue-900/50 p-4 rounded border border-blue-400 hidden animate-pulse"></div>
+                    <div class="mt-8 text-xs text-zinc-500 italic">Position transmise en temps réel</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <main id="ui-reg" class="hidden flex-1 flex flex-col p-4">
-        <div class="flex justify-between items-center mb-4 bg-zinc-900/50 p-4 rounded-xl border border-white/5">
-            <div>
-                <span class="bg-yellow-400 text-black px-2 py-0.5 font-bold mr-2">58</span>
-                <span class="font-orbitron text-cyan-500 uppercase text-sm">Radar Magnétique IRIS</span>
-            </div>
-            <div id="status-tag" class="text-[10px] uppercase font-bold text-cyan-600 animate-pulse">Scan Fréquence...</div>
-        </div>
-
-        <div class="flex-1 grid grid-cols-4 gap-4 overflow-hidden">
-            <div class="col-span-3 radar-container">
-                <div id="map"></div>
-                <div class="radar-sweep"></div>
-            </div>
-            <div class="flex flex-col gap-4">
-                <div class="glass p-4 rounded-xl flex-1 overflow-y-auto">
-                    <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-2">Flux de données</h4>
-                    <div id="reg-console" class="font-mono text-[10px] text-cyan-500 space-y-1"></div>
-                </div>
-                <button onclick="triggerCouplage()" class="bg-red-900/40 border border-red-500 text-red-500 py-6 rounded-xl font-black uppercase hover:bg-red-600 hover:text-white transition-all">
-                    Urgence Couplage
-                </button>
-            </div>
-        </div>
-    </main>
-
-    <main id="ui-bus" class="hidden flex-1 flex items-center justify-center p-4">
-        <div class="pupitre w-full max-w-md aspect-[4/3] p-8 flex flex-col justify-between text-center relative">
-            <div class="text-6xl font-orbitron text-white py-4" id="clock">00:00</div>
-            <div>
-                <h2 id="bus-label" class="text-4xl font-black text-cyan-500 uppercase">En Ligne</h2>
-                <p id="bus-sub" class="text-sm text-gray-500 mt-2 font-mono italic">Collecte de données activée</p>
-            </div>
-            <div class="grid grid-cols-2 gap-4 mt-6">
-                <div class="bg-zinc-800 p-4 rounded-xl">
-                    <span class="text-[10px] block text-gray-400">SIGNAL</span>
-                    <span id="sig-val" class="text-xl font-bold text-green-500">INIT...</span>
-                </div>
-                <div class="bg-zinc-800 p-4 rounded-xl">
-                    <span class="text-[10px] block text-gray-400">ID IRIS</span>
-                    <span id="id-val" class="text-xl font-bold text-white">#--</span>
-                </div>
-            </div>
-        </div>
-    </main>
-
     <script>
-        let myRole = '';
-        let map, marker, peer, conn;
-        const REG_ID = 'iris-58-pcc-central';
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role'); // ?role=mod ou ?role=bus
+        let peer, conn, map, marker;
 
-        function initApp(role) {
-            myRole = role;
-            document.getElementById('selection-screen').classList.add('hidden');
-            if(role === 'reg') {
-                document.getElementById('ui-reg').classList.remove('hidden');
-                startRegulateur();
-            } else {
-                document.getElementById('ui-bus').classList.remove('hidden');
-                startMachiniste();
-            }
+        const MOD_ID = 'iris-pcc-58';
+        const BUS_ID = 'iris-bus-58';
+
+        // Initialisation
+        if (role === 'bus') {
+            document.getElementById('mod-view').classList.add('hidden');
+            document.getElementById('reg-controls').classList.add('hidden');
+            document.getElementById('bus-screen').classList.remove('hidden');
+            initBus();
+        } else {
+            initMod();
         }
 
-        // --- LOGIQUE REGULATEUR ---
-        function startRegulateur() {
-            map = L.map('map', {zoomControl: false}).setView([48.83, 2.33], 14);
+        // LOGIQUE MODÉRATEUR
+        function initMod() {
+            map = L.map('map').setView([48.831, 2.321], 15);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
             
-            peer = new Peer(REG_ID);
-            peer.on('open', () => logConsole("Radar prêt. ID: " + REG_ID));
+            peer = new Peer(MOD_ID);
+            peer.on('open', () => log("PCC prêt. En attente du bus..."));
             
             peer.on('connection', (connection) => {
                 conn = connection;
-                logConsole("Bus détecté sur la ligne.");
-                conn.on('data', (data) => {
-                    if(data.type === 'gps') {
-                        updateRadar(data.lat, data.lon);
-                        logConsole(`Position reçue: ${data.lat.toFixed(4)}, ${data.lon.toFixed(4)}`);
-                    }
-                });
+                setupConn();
             });
         }
 
-        function updateRadar(lat, lon) {
-            if(!marker) {
-                marker = L.circleMarker([lat, lon], {radius: 8, color: '#06b6d4', fillColor: '#06b6d4', fillOpacity: 0.8}).addTo(map);
-                marker.bindTooltip("BUS 58-ACTIVE", {permanent: true, direction: 'right'});
-            }
-            marker.setLatLng([lat, lon]);
-            map.panTo([lat, lon]);
-        }
-
-        // --- LOGIQUE MACHINISTE ---
-        function startMachiniste() {
-            const myId = 'BUS-' + Math.floor(Math.random()*999);
-            document.getElementById('id-val').innerText = myId;
-            peer = new Peer(myId);
-
+        // LOGIQUE BUS
+        function initBus() {
+            peer = new Peer(BUS_ID);
             peer.on('open', () => {
-                document.getElementById('sig-val').innerText = "OK";
-                // On tente de se connecter au PCC
-                const connectToPCC = () => {
-                    conn = peer.connect(REG_ID);
-                    conn.on('open', () => {
-                        document.getElementById('bus-label').innerText = "CONNECTÉ";
-                        document.getElementById('bus-label').className = "text-4xl font-black text-green-500 uppercase";
-                    });
-                };
-                setTimeout(connectToPCC, 1000);
+                const connection = peer.connect(MOD_ID);
+                setupConn(connection);
             });
+        }
 
-            setInterval(() => {
-                if (navigator.geolocation && conn && conn.open) {
-                    navigator.geolocation.getCurrentPosition((p) => {
-                        conn.send({type: 'gps', lat: p.coords.latitude, lon: p.coords.longitude});
-                    });
+        function setupConn(connection) {
+            if(connection) conn = connection;
+            
+            conn.on('open', () => {
+                document.getElementById('connection-status').innerText = "Connecté";
+                document.getElementById('connection-status').className = "text-sm font-bold status-online";
+                if(role === 'mod') log("Bus Ligne 58 connecté.");
+                
+                if(role === 'bus') {
+                    // Collecte GPS automatique
+                    setInterval(() => {
+                        navigator.geolocation.getCurrentPosition(pos => {
+                            conn.send({type: 'gps', lat: pos.coords.latitude, lon: pos.coords.longitude});
+                        });
+                    }, 5000);
                 }
-            }, 3000);
+            });
 
-            // Ecoute des ordres de couplage
-            peer.on('connection', (c) => {
-                c.on('data', (data) => {
-                    if(data.action === 'couplage') {
-                        document.body.style.background = "#450a0a";
-                        document.getElementById('bus-label').innerText = "COUPLAGE !";
-                        document.getElementById('bus-label').classList.add('animate-bounce');
-                    }
-                });
+            conn.on('data', data => {
+                if(data.type === 'gps') updateBusPos(data.lat, data.lon);
+                if(data.type === 'action') handleAction(data.value);
+                if(data.type === 'msg') handleMsg(data.value);
             });
         }
 
-        function triggerCouplage() {
-            if(conn) {
-                conn.send({action: 'couplage'});
-                logConsole("ORDRE DE COUPLAGE ENVOYÉ");
-            }
-        }
-
-        function logConsole(msg) {
-            const c = document.getElementById('reg-console');
-            c.innerHTML = `<div>> ${msg}</div>` + c.innerHTML;
-        }
-
-        setInterval(() => {
-            const n = new Date();
-            const t = n.getHours().toString().padStart(2,'0') + ":" + n.getMinutes().toString().padStart(2,'0');
-            if(document.getElementById('clock')) document.getElementById('clock').innerText = t;
-        }, 1000);
-    </script>
-</body>
-</html>
+        // ACTIONS
+        function updateBusPos(lat, lon) {
+            if(!marker) marker = L.marker([lat, lon]).addTo(map);
+            marker.setLatLng([lat, lon]);
