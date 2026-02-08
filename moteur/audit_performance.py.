@@ -1,0 +1,31 @@
+import pandas as pd
+import json
+
+class IrisAudit:
+    def __init__(self, config_path):
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
+        self.km_theorique_tour = 8.5  # Distance Vanves-Châtelet
+        
+    def calculer_realisation(self, voitures_sorties, km_perdus_regul, km_deviation):
+        """
+        Calcule la ROT (Réalisation de l'Offre de Transport) selon la vision 2025.
+        """
+        km_prevus = voitures_sorties * self.km_theorique_tour
+        km_reels = km_prevus - km_perdus_regul + km_deviation
+        
+        rot = (km_reels / km_prevus) * 100
+        return round(rot, 2)
+
+    def indice_regularite(self, intervalle_reel, intervalle_theo):
+        """
+        Indice clé pour l'audit : plus l'écart est grand, plus le score chute.
+        """
+        score = (intervalle_theo / intervalle_reel) * 100
+        return min(round(score, 2), 100.0)
+
+# Exemple d'utilisation pour le rapport SRIG
+audit = IrisAudit('config.json')
+# Simulation : 100 tours prévus, 2 tours perdus pour régulation fréquence, déviation Jean Jaurès active
+resultat = audit.calculer_realisation(100, 17.0, 4.0)
+print(f"Réalisation de l'Offre (ROT) : {resultat}%")
