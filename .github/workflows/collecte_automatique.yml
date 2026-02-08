@@ -34,7 +34,13 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add iris_config.json
+          
+          # 1. On se synchronise d'abord (très important)
           git pull --rebase origin main
-          git commit -m "IRIS: Mise à jour positions [skip ci]" || exit 0
+          
+          # 2. On ajoute les fichiers modifiés par le script Python
+          git add iris_config.json
+          
+          # 3. On valide et on envoie
+          git commit -m "IRIS: Mise à jour positions automatique [skip ci]" || exit 0
           git push origin main
