@@ -1,0 +1,18 @@
+# Environnements Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Données temporaires de collecte
+data/temp_*.json
+logs/
+
+# Systèmes d'exploitation
+.DS_Store
+Thumbs.db
+
+# Fichiers de configuration sensibles
+.env
+config.local.json
