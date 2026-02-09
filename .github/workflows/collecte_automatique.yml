@@ -1,29 +1,44 @@
-name: Collecte des données IRIS Ligne 58
+name: IRIS Ligne 58 - Collecte Haute Frequence
 
 on:
   schedule:
-    # S'exécute toutes les heures (Format Cron)
-    - cron: '0 * * * *'
-  workflow_dispatch: # Permet de lancer la collecte manuellement pour tester
+    # S'exécute toutes les 5 minutes (limite standard GitHub)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    # Permet de lancer une collecte manuelle depuis l'onglet Actions
 
 jobs:
-  run-collection:
+  collecte:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Récupération du code
+      - name: Récupération du dépôt
         uses: actions/checkout@v4
 
       - name: Configuration de Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+          cache: 'pip'
 
       - name: Installation des dépendances
         run: |
-          pip install requests  # Ajoutez ici vos autres bibliothèques nécessaires
+          python -m pip install --upgrade pip
+          # On installe 'requests' qui est souvent nécessaire pour les API
+          pip install requests 
 
       - name: Exécution du script de collecte
         env:
+          # Injection sécurisée du token de collecte
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
+        # Utilisation de guillemets car le nom du fichier contient des espaces
         run: python "collecte de données.py"
+
+      - name: Sauvegarde des données collectées
+        # Cette étape permet d'enregistrer les changements si votre script écrit dans un fichier JSON/CSV
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Mise à jour automatique des positions - IRIS" || exit 0
+          git push
