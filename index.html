@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IRIS v3.0 - PCC LIGNE 58</title>
+    <title>IRIS v3.5 - PCC LIGNE 58</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -12,14 +12,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 
     <style>
-        :root { --iris-blue: #00f2ff; --iris-bg: #0a0a0a; }
+        :root { --iris-blue: #00f2ff; --iris-alert: #ff3e3e; --iris-bg: #0a0a0a; }
         body, html { margin: 0; padding: 0; background: var(--iris-bg); font-family: 'Rajdhani', sans-serif; color: white; overflow: hidden; height: 100%; }
         #map { height: 100vh; width: 100vw; z-index: 1; background: #0a0a0a; }
 
         .pcc-overlay {
             position: absolute; top: 20px; left: 20px; z-index: 1000;
             background: rgba(10, 10, 10, 0.9); border-left: 4px solid var(--iris-blue);
-            padding: 15px; width: 320px; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            padding: 15px; width: 320px; box-shadow: 0 0 25px rgba(0,0,0,0.7);
             pointer-events: none;
         }
         .status-badge {
@@ -27,34 +27,49 @@
             color: var(--iris-blue); font-family: 'Orbitron', sans-serif; font-size: 10px; margin-bottom: 10px;
         }
         #reg-console {
-            height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px;
-            color: #888; border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;
+            height: 150px; overflow-y: auto; font-family: monospace; font-size: 10px;
+            color: #aaa; border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;
         }
         .bus-ping { 
-            width: 12px; height: 12px; background: var(--iris-blue); 
-            border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid white; 
+            width: 14px; height: 14px; background: var(--iris-blue); 
+            border-radius: 50%; animation: pulse 1.8s infinite; border: 2px solid white; 
         }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }
         
-        /* Style des étiquettes IDs */
         .bus-label { 
             background: transparent !important; border: none !important; 
-            box-shadow: none !important; color: var(--iris-blue) !important; 
-            font-weight: bold; font-family: 'Orbitron'; text-shadow: 1px 1px 2px black;
+            color: var(--iris-blue) !important; font-weight: 700; font-family: 'Orbitron';
+            text-shadow: 2px 2px 4px #000; font-size: 12px;
         }
+        .alert-msg { color: var(--iris-alert); font-weight: bold; animation: blink 0.5s infinite alternate; }
+        @keyframes blink { from { opacity: 1; } to { opacity: 0.5; } }
+
+        /* Style pour rendre le bouton cliquable au-dessus de l'overlay */
+        .btn-collecte {
+            pointer-events: auto; background: #111; border: 1px solid #333;
+            color: #666; font-size: 9px; padding: 5px; margin-top: 10px; width: 100%;
+            transition: all 0.3s;
+        }
+        .btn-collecte:hover { color: var(--iris-blue); border-color: var(--iris-blue); }
     </style>
 </head>
 <body>
+
     <div class="pcc-overlay">
         <div class="status-badge">IRIS SYSTEM ACTIVE</div>
-        <h1 class="text-xl font-bold font-['Orbitron'] tracking-wider">PCC LIGNE 58</h1>
+        <h1 class="text-xl font-bold font-['Orbitron'] tracking-wider text-white">PCC LIGNE 58</h1>
+        <div class="text-[10px] text-zinc-500 uppercase mt-1">Secteur : Alésia - 13 Unités</div>
         <div id="reg-console"><div>[SYSTEM] Initialisation...</div></div>
+        <button class="btn-collecte" onclick="exportHistory()">TÉLÉCHARGER COLLECTE (JSON)</button>
     </div>
+
     <div id="map"></div>
 
     <script>
         let map;
         let fleet = {};
+        let paths = {}; // Tracé des chemins
+        let historyData = []; // Collecte de données (08/02)
         const PCC_ID = 'IRIS-PCC-58-GLOBAL';
 
         function initMap() {
@@ -62,41 +77,70 @@
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; CartoDB'
             }).addTo(map);
-            logConsole("CARTE CHARGÉE - SECTEUR ALÉSIA");
+            
+            logConsole("CARTE CHARGÉE - SCANNER PRÊT");
             initPeer();
         }
 
-        function logConsole(msg) {
+        function logConsole(msg, isAlert = false) {
             const consoleDiv = document.getElementById('reg-console');
             const time = new Date().toLocaleTimeString();
-            consoleDiv.innerHTML = `<div class="mb-1"><span class="text-[#00f2ff]">[${time}]</span> ${msg}</div>` + consoleDiv.innerHTML;
+            const style = isAlert ? 'class="alert-msg"' : '';
+            consoleDiv.innerHTML = `<div class="mb-1" ${style}><span>[${time}]</span> ${msg}</div>` + consoleDiv.innerHTML;
         }
 
         function updateBus(id, lat, lon) {
+            const pos = [lat, lon];
+            
+            // Enregistrement pour la collecte de données
+            historyData.push({ id, lat, lon, t: new Date().toISOString() });
+
             if (!fleet[id]) {
-                // Création du bus avec son ID visible pour la régulation
-                fleet[id] = L.marker([lat, lon], {
+                // Création du bus
+                fleet[id] = L.marker(pos, {
                     icon: L.divIcon({ className: '', html: '<div class="bus-ping"></div>' })
                 }).addTo(map).bindTooltip(id, { 
-                    permanent: true, 
-                    direction: 'top', 
-                    className: 'bus-label' 
+                    permanent: true, direction: 'top', className: 'bus-label', offset: [0, -10] 
                 });
-                logConsole(`UNITÉ ${id} DÉTECTÉE`);
+
+                // Initialisation du tracé (chemin)
+                paths[id] = L.polyline([pos], {
+                    color: '#00f2ff',
+                    weight: 2,
+                    opacity: 0.4,
+                    dashArray: '5, 10'
+                }).addTo(map);
+
+                logConsole(`UNITÉ ${id} CONNECTÉE`);
             } else {
-                fleet[id].setLatLng([lat, lon]);
+                // Mise à jour position et tracé
+                fleet[id].setLatLng(pos);
+                paths[id].addLatLng(pos);
             }
+
+            checkCouplage(id, L.latLng(lat, lon));
+        }
+
+        function checkCouplage(busId, busPos) {
+            Object.keys(fleet).forEach(otherId => {
+                if (busId !== otherId) {
+                    const dist = busPos.distanceTo(fleet[otherId].getLatLng());
+                    if (dist < 150) {
+                        logConsole(`ALERTE COUPLAGE : ${busId} & ${otherId}`, true);
+                    }
+                }
+            });
         }
 
         function initPeer() {
-            const peer = new Peer(PCC_ID);
+            const peer = new Peer(PCC_ID, { debug: 2 });
 
             peer.on('open', (id) => {
-                logConsole("CANAL RÉSEAU PRÊT : " + id);
+                logConsole("CANAL RÉSEAU ÉTABLI : " + id);
             });
 
             peer.on('connection', (conn) => {
-                logConsole("CONNEXION CHAUFFEUR ÉTABLIE");
+                logConsole(`FLUX ENTRANT : CONNEXION ÉTABLIE`);
                 conn.on('data', (data) => {
                     if (data.type === 'position') {
                         updateBus(data.id, data.lat, data.lon);
@@ -105,11 +149,18 @@
             });
 
             peer.on('error', (err) => {
-                logConsole("ERREUR : " + err.type);
-                if(err.type === 'unavailable-id') {
-                    logConsole("ID déjà utilisé. Tentative de reconnexion...");
-                }
+                logConsole("ERREUR RÉSEAU : " + err.type, true);
             });
+        }
+
+        function exportHistory() {
+            if (historyData.length === 0) return alert("Aucune donnée collectée.");
+            const blob = new Blob([JSON.stringify(historyData, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `collecte_58_${new Date().getTime()}.json`;
+            a.click();
         }
 
         window.onload = initMap;
