@@ -1,1 +1,76 @@
 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRIS - Terminal Chauffeur</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-zinc-900 text-white flex flex-col items-center justify-center h-screen p-6">
+
+    <div class="w-full max-w-sm bg-zinc-800 rounded-2xl p-8 border-t-4 border-yellow-500 shadow-2xl">
+        <h1 class="text-2xl font-['Orbitron'] text-center mb-6 tracking-tighter">IRIS CHAUFFEUR</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs text-zinc-400 uppercase tracking-widest">Identifiant Unité</label>
+                <input type="text" id="busId" value="V14" class="w-full bg-zinc-700 p-3 rounded-lg border border-zinc-600 focus:outline-none focus:border-yellow-500 font-bold">
+            </div>
+
+            <div id="status" class="bg-zinc-900 p-4 rounded-lg border border-zinc-700 text-center text-sm font-mono">
+                <span class="text-zinc-500 italic">En attente de démarrage...</span>
+            </div>
+
+            <button id="startBtn" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-4 rounded-xl transition-all uppercase tracking-widest">
+                Transmettre Position
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const PCC_ID = 'IRIS-PCC-58-GLOBAL';
+        let peer, conn;
+
+        startBtn.onclick = () => {
+            startBtn.disabled = true;
+            startBtn.innerText = "CONNEXION...";
+            
+            // Initialisation PeerJS
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                statusDiv.innerHTML = `<span class="text-blue-400">ID RÉSEAU : ${id}</span>`;
+                conn = peer.connect(PCC_ID);
+
+                conn.on('open', () => {
+                    statusDiv.innerHTML = `<span class="text-green-500">LIÉ AU PCC LIGNE 58</span>`;
+                    startTracking();
+                });
+            });
+        };
+
+        function startTracking() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((pos) => {
+                    const data = {
+                        type: 'position',
+                        id: document.getElementById('busId').value,
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        status: 'EN_MOUVEMENT'
+                    };
+                    conn.send(data);
+                    statusDiv.innerHTML = `<span class="text-yellow-500">SIGNAL ÉMIS : ${pos.coords.latitude.toFixed(4)}</span>`;
+                }, (err) => {
+                    statusDiv.innerHTML = `<span class="text-red-500">ERREUR GPS</span>`;
+                }, { enableHighAccuracy: true });
+            }
+        }
+    </script>
+</body>
+</html>
