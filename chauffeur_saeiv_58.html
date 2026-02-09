@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IRIS - Terminal Chauffeur L58</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #050a15;
+            --panel-bg: #0a192f;
+            --text-main: #e0f7fa;
+            --accent-blue: #00d2ff;
+            --alert-red: #d32f2f;
+            --ok-green: #00c853;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header : Télémétrie */
+        header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            background: var(--panel-bg);
+            border-bottom: 2px solid #1a2a44;
+        }
+
+        .stat-box { text-align: center; }
+        .stat-label { font-size: 0.7em; color: var(--accent-blue); text-transform: uppercase; }
+        .stat-value { font-size: 1.4em; font-weight: bold; }
+
+        /* Zone Centrale : Progression & Prochain Arrêt */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .direction-arrow {
+            font-size: 80px;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+            transition: transform 0.5s;
+        }
+
+        .next-stop-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid #1a2a44;
+        }
+
+        .delay-indicator {
+            font-size: 2.5em;
+            margin-top: 10px;
+            font-weight: 900;
+        }
+
+        /* Mini-Map en bas à droite */
+        #mini-map {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            border-radius: 15px;
+            border: 2px solid var(--accent-blue);
+            z-index: 10;
+        }
+
+        /* Footer : Actions */
+        footer {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-incident { background-color: var(--alert-red); }
+        .btn-pcc { background-color: #1a2a44; border: 1px solid var(--accent-blue); }
+
+        .pulse { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(211, 47, 47, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="stat-box">
+            <div class="stat-label">Bus ID</div>
+            <div class="stat-value" id="bus-id">5804</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Espace Devant</div>
+            <div class="stat-value" id="gap-front">-- min</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Espace Derrière</div>
+            <div class="stat-value" id="gap-back">-- min</div>
+        </div>
+    </header>
+
+    <main>
+        <div id="direction-icon" class="direction-arrow">⬆</div>
+        
+        <div class="next-stop-card">
+            <div class="stat-label" id="direction-label">EN DIRECTION DE VANVES</div>
+            <div style="font-size: 1.8em; margin: 10px 0;" id="next-stop-name">ALÉSIA - LES PLANTES</div>
+            <div class="stat-label">AVANCE / RETARD</div>
+            <div id="delta-time" class="delay-indicator">+01:30</div>
+        </div>
+
+        <div id="mini-map"></div>
+    </main>
+
+    <footer>
+        <button class="btn btn-pcc">APPEL PCC</button>
+        <button class="btn btn-incident pulse" onclick="signalerIncident()">SIGNALER INCIDENT</button>
+    </footer>
+
+    <script>
+        // --- CONFIGURATION LIGNE 58 ---
+        const stations = {
+            ALLER: [
+                { id: "CTL", name: "Châtelet", lat: 48.8575, lon: 2.3475 },
+                { id: "GA", name: "Grands Augustins", lat: 48.8545, lon: 2.3405 },
+                { id: "LUX", name: "Luxembourg", lat: 48.8471, lon: 2.3392 },
+                { id: "18J", name: "Montparnasse", lat: 48.8421, lon: 2.3219 },
+                { id: "AL", name: "Alésia-Les Plantes", lat: 48.8281, lon: 2.3210 },
+                { id: "CHN", name: "Porte de Vanves", lat: 48.8235, lon: 2.3045 },
+                { id: "VLM", name: "Vanves Lycée Michelet", lat: 48.8210, lon: 2.2900 }
+            ],
+            RETOUR: [
+                { id: "VLM", name: "Vanves Lycée Michelet", lat: 48.8210, lon: 2.2900 },
+                { id: "CHI", name: "Porte de Vanves", lat: 48.8235, lon: 2.3045 },
+                { id: "AL", name: "Alésia-Didot", lat: 48.8281, lon: 2.3267 },
+                { id: "18J", name: "Montparnasse", lat: 48.8421, lon: 2.3219 },
+                { id: "SG", name: "Saint-Germain", lat: 48.8530, lon: 2.3330 },
+                { id: "CTL", name: "Châtelet", lat: 48.8575, lon: 2.3475 }
+            ]
+        };
+
+        let currentSens = "ALLER";
+        let map, userMarker;
+
+        // --- INITIALISATION CARTE ---
+        function initMap() {
+            map = L.map('mini-map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([48.84, 2.32], 13);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+            userMarker = L.circleMarker([0, 0], { color: '#00d2ff', radius: 8, fillOpacity: 1 }).addTo(map);
+        }
+
+        // --- LOGIQUE GPS & SENS ---
+        function updatePosition() {
+            navigator.geolocation.watchPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const speed = Math.round(pos.coords.speed * 3.6) || 0;
+
+                userMarker.setLatLng([lat, lon]);
+                map.panTo([lat, lon]);
+
+                // Détection de sens (simplifiée)
+                if (lat > 48.85) currentSens = "RETOUR";
+                if (lat < 48.82) currentSens = "ALLER";
+
+                document.getElementById('direction-icon').innerText = currentSens === "ALLER" ? "⬇" : "⬆";
+                document.getElementById('direction-label').innerText = currentSens === "ALLER" ? "VERS LYCÉE MICHELET" : "VERS CHÂTELET";
+            });
+        }
+
+        function signalerIncident() {
+            alert("Incident signalé au PCC !");
+            // Ici le code PeerJS pour envoyer l'alerte au Mac
+        }
+
+        // Lancement
+        window.onload = () => {
+            initMap();
+            updatePosition();
+            
+            // Simulation avance (à coupler avec tes CSV)
+            setInterval(() => {
+                const randomDelay = (Math.random() * 5).toFixed(1);
+                document.getElementById('delta-time').innerText = `+0${Math.floor(randomDelay)}:${Math.floor((randomDelay % 1) * 60)}`;
+            }, 5000);
+        };
+    </script>
+</body>
+</html>
