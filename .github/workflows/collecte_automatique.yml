@@ -23,8 +23,9 @@ jobs:
       - name: 4. Execution du script
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
+        # ON UTILISE LE NOM EXACT SANS ESPACE :
         run: python collecte_donnees.py
-
+        
       - name: 5. Sauvegarde des resultats
         run: |
           git config --local user.email "action@github.com"
