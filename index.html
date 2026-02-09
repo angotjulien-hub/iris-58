@@ -1,25 +1,245 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRIS - Suivi Ligne 58</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        body { font-family: sans-serif; margin: 0; padding: 0; }
-        #map { height: 70vh; width: 100%; }
-        .info-panel { padding: 15px; background: #f4f4f4; border-bottom: 2px solid #ccc; }
-        .status-ok { color: green; font-weight: bold; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRIS v3.0 - Système Proactif L58</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+        body { background: #02040a; color: #e2e8f0; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .pupitre { background: #111; border: 10px solid #222; border-radius: 20px; box-shadow: inset 0 0 50px #000; }
+        .alert-anim { animation: pulse-alert 1.5s infinite; }
+        @keyframes pulse-alert { 
+            0%, 100% { background: rgba(153, 27, 27, 0.2); border-color: #ef4444; color: #ef4444; } 
+            50% { background: rgba(234, 88, 12, 0.3); border-color: #f97316; color: #fff; } 
+        }
+        #radar-beam { animation: rotate 4s linear infinite; transform-origin: center; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
 </head>
-<body>
-    <div class="info-panel">
-        <h2>📍 Système IRIS - Ligne 58</h2>
-        <div id="details">Chargement des données...</div>
-    </div>
-    <div id="map"></div>
+<body class="h-screen flex flex-col">
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js"></script>
+    <div id="selection-screen" class="fixed inset-0 z-[100] bg-[#02040a] flex flex-col items-center justify-center">
+        <div class="mb-8 text-cyan-500 animate-pulse font-orbitron tracking-tighter text-sm">SYSTEME DE COUPLAGE ACTIF</div>
+        <h1 class="font-orbitron text-4xl mb-12 tracking-[0.4em] text-white">IRIS <span class="text-cyan-500">CORE</span> v3.0</h1>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-8">
+            <button onclick="initApp('reg')" class="glass p-12 rounded-3xl border-2 border-cyan-500/30 hover:border-cyan-500 transition-all group">
+                <div class="text-6xl mb-4 group-hover:scale-110 transition-transform text-cyan-500">📡</div>
+                <h2 class="text-2xl font-bold uppercase tracking-widest text-cyan-400">Régulateur</h2>
+                <p class="text-gray-500 text-sm mt-2 font-mono italic">Priorité : Couplage & Fluidité</p>
+            </button>
+            <button onclick="initApp('bus')" class="glass p-12 rounded-3xl border-2 border-yellow-500/30 hover:border-yellow-500 transition-all group">
+                <div class="text-6xl mb-4 group-hover:scale-110 transition-transform text-yellow-500">🚌</div>
+                <h2 class="text-2xl font-bold uppercase tracking-widest text-yellow-400">Machiniste</h2>
+                <p class="text-gray-500 text-sm mt-2 font-mono italic">Collecte GPS : Haute Précision</p>
+            </button>
+        </div>
+    </div>
+
+    <main id="ui-reg" class="hidden flex-1 flex flex-col p-6">
+        <header class="flex justify-between items-center mb-6 border-b border-cyan-500/30 pb-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-yellow-400 text-black px-3 py-1 font-black text-xl">58</div>
+                <h2 class="font-orbitron text-xl text-cyan-500 tracking-wider">PCC CENTRAL - IRIS v3</h2>
+            </div>
+            <div id="reg-status" class="px-4 py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-bold text-xs uppercase">Réseau Nominal</div>
+        </header>
+        
+        <div class="grid grid-cols-3 gap-6 flex-1">
+            <div class="col-span-2 glass rounded-3xl p-8 flex flex-col relative overflow-hidden">
+                <div class="absolute top-4 left-6 text-xs font-mono text-cyan-500/50">MAPPING MAGNETIQUE L58</div>
+                <div class="flex-1 border border-cyan-500/10 rounded-2xl bg-black/40 relative flex items-center justify-center">
+                    <svg class="absolute inset-0 w-full h-full opacity-10">
+                        <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="cyan" stroke-width="0.5"/></pattern></defs>
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+                    </svg>
+                    <div id="radar" class="w-64 h-64 border border-cyan-500/20 rounded-full relative flex items-center justify-center">
+                        <div id="radar-beam" class="absolute inset-0 border-r-2 border-cyan-500/40 rounded-full shadow-[5px_0_15px_cyan]"></div>
+                        <div id="bus-node" class="w-4 h-4 bg-cyan-500 rounded-full shadow-[0_0_20px_cyan] z-10 hidden"></div>
+                    </div>
+                </div>
+                <button onclick="triggerIncident()" id="btn-inc" class="mt-6 bg-zinc-900 border border-white/10 text-gray-500 py-4 rounded-xl font-black uppercase hover:border-cyan-500 hover:text-cyan-500 transition-all">Analyse de Couplage en cours...</button>
+            </div>
+            
+            <div class="glass rounded-3xl p-6 flex flex-col gap-4">
+                <div class="bg-white/5 p-4 rounded-xl text-center border border-white/5">
+                    <p class="text-xs text-gray-500 uppercase tracking-widest">EID Moyen</p>
+                    <p id="reg-eid" class="text-4xl font-orbitron font-bold">12:00</p>
+                </div>
+                <div class="bg-white/5 p-4 rounded-xl text-center border border-white/5">
+                    <p class="text-xs text-gray-500 uppercase tracking-widest">Précision Collecte</p>
+                    <p id="reg-acc" class="text-2xl font-orbitron font-bold text-cyan-400">---</p>
+                </div>
+                <div class="flex-1 flex flex-col justify-end gap-2">
+                    <div class="text-[10px] text-gray-600 font-mono uppercase">Log Proactif :</div>
+                    <div id="log-console" class="bg-black/60 p-4 rounded-xl h-48 font-mono text-[10px] text-cyan-700 overflow-y-auto">
+                        > Initialisation IRIS CORE...<br>
+                        > En attente connexion machiniste...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-reg" class="fixed inset-0 bg-black/95 hidden items-center justify-center p-6 z-[110]">
+            <div class="glass border-2 border-cyan-500 p-10 rounded-[2rem] max-w-md w-full text-center shadow-[0_0_50px_rgba(6,182,212,0.2)]">
+                <div class="text-cyan-500 text-4xl mb-4 font-black italic">! ORDRE !</div>
+                <h3 class="text-2xl font-black mb-4 uppercase text-white">Action Proactive suggérée</h3>
+                <p id="modal-text" class="text-gray-400 mb-8 leading-relaxed text-lg"></p>
+                <button onclick="validerOrdre()" class="w-full bg-cyan-500 text-black font-black py-4 rounded-xl uppercase shadow-lg shadow-cyan-500/30 hover:scale-105 transition-transform">Envoyer l'ordre de Couplage</button>
+            </div>
+        </div>
+    </main>
+
+    <main id="ui-bus" class="hidden flex-1 flex flex-col p-4 md:p-10 items-center justify-center bg-[#0a0a0a]">
+        <div class="pupitre w-full max-w-5xl aspect-video p-6 md:p-12 flex flex-col justify-between relative">
+            <div class="absolute top-2 right-6 text-[10px] font-mono text-white/20">IRIS SAEIV v3.0 - EMBARQUÉ</div>
+            
+            <div class="flex justify-between border-b border-white/10 pb-6">
+                <div class="text-5xl md:text-7xl font-orbitron text-white" id="clock">00:00</div>
+                <div class="text-right">
+                    <span class="text-xl text-yellow-500 font-bold tracking-tighter uppercase">Ligne 58</span><br>
+                    <span id="terminus-label" class="text-3xl md:text-5xl font-black text-white">CHÂTELET</span>
+                </div>
+            </div>
+
+            <div id="bus-msg-box" class="flex-1 flex flex-col items-center justify-center transition-all duration-500">
+                <h2 id="bus-msg-main" class="text-6xl md:text-8xl font-black uppercase tracking-tighter text-white">En Ligne</h2>
+                <p id="bus-msg-sub" class="text-xl md:text-2xl text-green-500 font-bold mt-4 uppercase tracking-[0.3em]">Collecte GPS Active</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 md:gap-8">
+                <div class="bg-zinc-900/80 p-6 rounded-2xl border border-white/5 text-center">
+                    <span class="text-xs text-gray-500 uppercase mb-2 block">Prochain Arrêt</span>
+                    <p class="text-2xl md:text-3xl font-bold text-white uppercase">Alésia</p>
+                </div>
+                <div id="gap-box" class="bg-zinc-900/80 p-6 rounded-2xl border border-white/5 text-center">
+                    <span class="text-xs text-gray-500 uppercase mb-2 block font-bold">Signal GPS (Précision)</span>
+                    <p id="gap-val" class="text-2xl md:text-3xl font-orbitron font-bold text-green-400">---</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // CONFIGURATION & ETAT GLOBAL
+        let myRole = '';
+        const state = {
+            drift: 0,
+            precision: 0,
+            status: 'NOMINAL',
+            isIncident: false
+        };
+
+        function initApp(role) {
+            myRole = role;
+            document.getElementById('selection-screen').style.display = 'none';
+            if(role === 'reg') {
+                document.getElementById('ui-reg').style.display = 'flex';
+                initRegulateur();
+            } else {
+                document.getElementById('ui-bus').style.display = 'flex';
+                initBus();
+            }
+        }
+
+        // --- LOGIQUE MACHINISTE (PROACTIVE) ---
+        function initBus() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition((pos) => {
+                    const gpsData = {
+                        lat: pos.coords.latitude,
+                        acc: pos.coords.accuracy,
+                        ts: Date.now()
+                    };
+                    // Transmission au régulateur via localStorage pour le test Hub
+                    localStorage.setItem('iris_gps_sync', JSON.stringify(gpsData));
+                    
+                    // Update UI Bus
+                    document.getElementById('gap-val').innerText = `± ${pos.coords.accuracy.toFixed(1)}m`;
+                    if(pos.coords.accuracy > 15) {
+                        document.getElementById('gap-val').className = "text-2xl font-bold text-orange-500";
+                    } else {
+                        document.getElementById('gap-val').className = "text-2xl font-bold text-green-400 shadow-[0_0_10px_green]";
+                    }
+                }, null, { enableHighAccuracy: true });
+            }
+        }
+
+        // --- LOGIQUE RÉGULATEUR (PROACTIVE) ---
+        function initRegulateur() {
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'iris_gps_sync') {
+                    const data = JSON.parse(e.newValue);
+                    updateRegDisplay(data);
+                }
+                if (e.key === 'iris_order_final' && e.newValue === 'couplage') {
+                    applyCouplageGlobal();
+                }
+            });
+        }
+
+        function updateRegDisplay(data) {
+            document.getElementById('bus-node').style.display = 'block';
+            document.getElementById('reg-acc').innerText = `${data.acc.toFixed(1)}m`;
+            
+            const log = document.getElementById('log-console');
+            const entry = document.createElement('div');
+            entry.innerText = `> GPS RECEIVED: ACC ${data.acc.toFixed(1)}m`;
+            log.prepend(entry);
+
+            // ANALYSE PROACTIVE : Si précision faible ou dérive simulée
+            if(data.acc > 20 && !state.isIncident) {
+                triggerIncident("Perte de précision détectée - Recalage suggéré");
+            }
+        }
+
+        function triggerIncident(customMsg = null) {
+            state.isIncident = true;
+            localStorage.setItem('iris_incident_active', 'true');
+            
+            document.getElementById('reg-eid').innerText = "04:15";
+            document.getElementById('reg-eid').className = "text-4xl font-orbitron font-bold text-red-500 animate-pulse";
+            document.getElementById('btn-inc').className = "mt-6 py-4 rounded-xl font-black uppercase alert-anim transition-all";
+            document.getElementById('btn-inc').innerText = "ANALYSE IRIS : COUPLAGE REQUIS";
+            
+            document.getElementById('modal-text').innerText = customMsg || "Dérive d'intervalle détectée. Le bus 5842 entre en zone de convergence.";
+            document.getElementById('modal-reg').style.display = 'flex';
+        }
+
+        function validerOrdre() {
+            localStorage.setItem('iris_order_final', 'couplage');
+            document.getElementById('modal-reg').style.display = 'none';
+            document.getElementById('reg-status').innerText = "ORDRE TRANSMIS";
+            document.getElementById('reg-status').className = "px-4 py-1 rounded bg-cyan-500 text-black font-bold text-xs uppercase shadow-[0_0_15px_cyan]";
+        }
+
+        // --- APPLICATION GLOBALE DU COUPLAGE (BUS + REG) ---
+        function applyCouplageGlobal() {
+            if(myRole === 'bus') {
+                // Changement d'état visuel du pupitre
+                document.body.style.background = "#020a14";
+                document.getElementById('bus-msg-box').className = "flex-1 flex flex-col items-center justify-center bg-cyan-500/10 rounded-3xl border border-cyan-500/40 my-4 shadow-[0_0_40px_rgba(6,182,212,0.1)]";
+                document.getElementById('bus-msg-main').innerText = "ORDRE COUPLAGE";
+                document.getElementById('bus-msg-main').className = "text-5xl md:text-7xl font-black text-cyan-400 uppercase tracking-tighter";
+                document.getElementById('bus-msg-sub').innerHTML = "TERMINUS : <span class='text-white underline'>ALÉSIA</span>";
+                document.getElementById('bus-msg-sub').className = "text-2xl md:text-3xl text-cyan-500 font-black mt-4";
+                document.getElementById('terminus-label').innerText = "ALÉSIA";
+                document.getElementById('terminus-label').className = "text-3xl md:text-5xl font-black text-cyan-500";
+                
+                if ("vibrate" in navigator) navigator.vibrate([500, 200, 500]);
+            }
+        }
+
+        // Horloge
+        setInterval(() => {
+            const n = new Date();
+            const time = n.getHours().toString().padStart(2,'0') + ":" + n.getMinutes().toString().padStart(2,'0');
+            if(document.getElementById('clock')) document.getElementById('clock').innerText = time;
+        }, 1000);
+    </script>
 </body>
 </html>
