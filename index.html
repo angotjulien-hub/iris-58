@@ -2,62 +2,24 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IRIS v3.1 - PCC L58</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRIS - Suivi Ligne 58</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
     <style>
-        /* CSS de la Base 17h14 */
-        body { margin: 0; background: #000; font-family: 'Orbitron', sans-serif; overflow: hidden; }
-        #map { height: 100vh; width: 100vw; background: #0a0a0a; }
-        
-        .bus-ping {
-            width: 12px;
-            height: 12px;
-            background: #00f2ff;
-            border: 2px solid #fff;
-            border-radius: 50%;
-            box-shadow: 0 0 15px #00f2ff;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(2.5); opacity: 0; }
-        }
-
-        #reg-console {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 300px;
-            height: 150px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #00f2ff;
-            color: #00f2ff;
-            font-size: 10px;
-            padding: 10px;
-            overflow-y: auto;
-            z-index: 1000;
-            pointer-events: none;
-        }
+        body { font-family: sans-serif; margin: 0; padding: 0; }
+        #map { height: 70vh; width: 100%; }
+        .info-panel { padding: 15px; background: #f4f4f4; border-bottom: 2px solid #ccc; }
+        .status-ok { color: green; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <div id="map"></div>
-    <div id="reg-console">
-        <div>> INITIALISATION IRIS CORE...</div>
+    <div class="info-panel">
+        <h2>📍 Système IRIS - Ligne 58</h2>
+        <div id="details">Chargement des données...</div>
     </div>
+    <div id="map"></div>
 
-    <script>
-        // ... ICI TU COLLES TOUT LE SCRIPT QUE TU VIENS DE ME MONTRER ...
-        // (Copie-colle exactement ton bloc de <script> à </script> ici)
-    </script>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
