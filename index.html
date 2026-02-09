@@ -14,13 +14,13 @@
     <style>
         :root { --iris-blue: #00f2ff; --iris-bg: #0a0a0a; }
         body, html { margin: 0; padding: 0; background: var(--iris-bg); font-family: 'Rajdhani', sans-serif; color: white; overflow: hidden; height: 100%; }
-        #map { height: 100vh; width: 100vw; z-index: 1; }
+        #map { height: 100vh; width: 100vw; z-index: 1; background: #0a0a0a; }
 
-        /* Console PCC */
         .pcc-overlay {
             position: absolute; top: 20px; left: 20px; z-index: 1000;
             background: rgba(10, 10, 10, 0.9); border-left: 4px solid var(--iris-blue);
             padding: 15px; width: 320px; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            pointer-events: none;
         }
         .status-badge {
             display: inline-block; padding: 2px 8px; border: 1px solid var(--iris-blue);
@@ -30,9 +30,18 @@
             height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px;
             color: #888; border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;
         }
-        /* Animation Bus */
-        .bus-ping { width: 15px; height: 15px; background: var(--iris-blue); border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid white; }
+        .bus-ping { 
+            width: 12px; height: 12px; background: var(--iris-blue); 
+            border-radius: 50%; animation: pulse 1.5s infinite; border: 2px solid white; 
+        }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+        
+        /* Style des étiquettes IDs */
+        .bus-label { 
+            background: transparent !important; border: none !important; 
+            box-shadow: none !important; color: var(--iris-blue) !important; 
+            font-weight: bold; font-family: 'Orbitron'; text-shadow: 1px 1px 2px black;
+        }
     </style>
 </head>
 <body>
@@ -46,36 +55,62 @@
     <script>
         let map;
         let fleet = {};
+        const PCC_ID = 'IRIS-PCC-58-GLOBAL';
 
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([48.828, 2.327], 14);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CartoDB'
+            }).addTo(map);
             logConsole("CARTE CHARGÉE - SECTEUR ALÉSIA");
+            initPeer();
         }
 
         function logConsole(msg) {
             const consoleDiv = document.getElementById('reg-console');
-            consoleDiv.innerHTML = `<div class="mb-1"><span class="text-[#00f2ff]">[${new Date().toLocaleTimeString()}]</span> ${msg}</div>` + consoleDiv.innerHTML;
+            const time = new Date().toLocaleTimeString();
+            consoleDiv.innerHTML = `<div class="mb-1"><span class="text-[#00f2ff]">[${time}]</span> ${msg}</div>` + consoleDiv.innerHTML;
         }
 
         function updateBus(id, lat, lon) {
             if (!fleet[id]) {
+                // Création du bus avec son ID visible pour la régulation
                 fleet[id] = L.marker([lat, lon], {
                     icon: L.divIcon({ className: '', html: '<div class="bus-ping"></div>' })
-                }).addTo(map);
-                logConsole(`UNITÉ ${id} EN LIGNE`);
+                }).addTo(map).bindTooltip(id, { 
+                    permanent: true, 
+                    direction: 'top', 
+                    className: 'bus-label' 
+                });
+                logConsole(`UNITÉ ${id} DÉTECTÉE`);
             } else {
                 fleet[id].setLatLng([lat, lon]);
             }
         }
 
-        const peer = new Peer('IRIS-PCC-58-GLOBAL');
-        peer.on('open', (id) => logConsole("ID RÉSEAU : " + id));
-        peer.on('connection', (conn) => {
-            conn.on('data', (data) => {
-                if (data.type === 'position') updateBus(data.id, data.lat, data.lon);
+        function initPeer() {
+            const peer = new Peer(PCC_ID);
+
+            peer.on('open', (id) => {
+                logConsole("CANAL RÉSEAU PRÊT : " + id);
             });
-        });
+
+            peer.on('connection', (conn) => {
+                logConsole("CONNEXION CHAUFFEUR ÉTABLIE");
+                conn.on('data', (data) => {
+                    if (data.type === 'position') {
+                        updateBus(data.id, data.lat, data.lon);
+                    }
+                });
+            });
+
+            peer.on('error', (err) => {
+                logConsole("ERREUR : " + err.type);
+                if(err.type === 'unavailable-id') {
+                    logConsole("ID déjà utilisé. Tentative de reconnexion...");
+                }
+            });
+        }
 
         window.onload = initMap;
     </script>
