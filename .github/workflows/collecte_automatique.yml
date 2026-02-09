@@ -1,54 +1,29 @@
-name: IRIS Ligne 58 - Collecte Haute Frequence
+name: Collecte des données IRIS Ligne 58
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    # S'exécute toutes les heures (Format Cron)
+    - cron: '0 * * * *'
+  workflow_dispatch: # Permet de lancer la collecte manuellement pour tester
 
 jobs:
-  collecte:
+  run-collection:
     runs-on: ubuntu-latest
-    steps:
-      - name: 1. Recuperation du code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: 2. Configuration de Python
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 3. Installation des dependances
-        run: pip install requests
+      - name: Installation des dépendances
+        run: |
+          pip install requests  # Ajoutez ici vos autres bibliothèques nécessaires
 
-      - name: 4. Execution du script
+      - name: Exécution du script de collecte
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
-        run: python collecte_donnees.py
-
-      - name: 5. Sauvegarde et Push
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # 1. On met les modifs du script de côté temporairement
-          git stash
-          
-          # 2. On récupère les dernières mises à jour du dépôt
-          git pull --rebase origin main
-          
-          # 3. On récupère nos données du stash
-          git stash pop || echo "Pas de changements à récupérer"
-          
-          # 4. On enregistre tout et on envoie
-          git add iris_config.json
-          git commit -m "IRIS: Mise à jour positions automatique [skip ci]" || exit 0
-          git push origin main
-          
-          # 3. On valide et on envoie
-          git commit -m "IRIS: Mise à jour positions automatique [skip ci]" || exit 0
-          git push origin main
+        run: python "collecte de données.py"
