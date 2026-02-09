@@ -26,12 +26,6 @@ jobs:
       - name: 4. Execution du script
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
-        run: python "collecte de données.py"
-
-      - name: 5. Sauvegarde des resultats
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "IRIS: Mise à jour positions" || exit 0
-          git push
+          ls -R # Cette ligne va nous lister tous les fichiers pour être sûr du nom
+          python "collecte de données.py" || python "data-collect.py"
