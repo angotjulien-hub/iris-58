@@ -3,7 +3,7 @@ name: Collecte des données IRIS Ligne 58
 on:
   schedule:
     # S'exécute toutes les heures (Format Cron)
-    - cron: '0 * * * *'
+    - cron: '1 * * * *'
   workflow_dispatch: # Permet de lancer la collecte manuellement pour tester
 
 jobs:
