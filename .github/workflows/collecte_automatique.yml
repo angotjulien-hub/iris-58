@@ -13,14 +13,14 @@ jobs:
         with:
           python-version: '3.10'
       - run: pip install requests
-      - name: Execution
+      - name: Lancement du script
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
         run: python collecte_donnees.py
-      - name: Sauvegarde
+      - name: Sauvegarde Git
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add .
-          git commit -m "IRIS: Mise à jour positions automatique" || exit 0
+          git add iris_config.json
+          git commit -m "IRIS: Mise à jour positions" || exit 0
           git push
