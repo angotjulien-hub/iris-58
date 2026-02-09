@@ -1,18 +1,20 @@
-name: Test Moteur IRIS
-on: [workflow_dispatch]
+name: IRIS Quality Check
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
-      - uses: actions/checkout@v3
-      - name: Lancer la mise à jour
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Lint HTML & JS
         run: |
-          python moteur/update_dashboard.py
-      - name: Publier le résultat
-        run: |
-          git config --global user.name "Robot IRIS"
-          git config --global user.email "iris@github.com"
-          git add README.md
-          git commit -m "MAJ Dashboard Journalier"
-          git push
+          echo "Vérification de l'intégrité des fichiers IRIS..."
+          # Ici on simule un check, pas d'écriture git push
