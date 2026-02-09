@@ -26,4 +26,4 @@ jobs:
       - name: Exécution du script de collecte
         env:
           COLLECTION_TOKEN: ${{ secrets.COLLECTION_TOKEN }}
-        run: python "collecte de données.py"
+        run: python "data_collect.py"
