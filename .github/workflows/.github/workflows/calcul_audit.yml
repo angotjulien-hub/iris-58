@@ -1,16 +1,32 @@
-name: Génération Rapport SRIG 58
+name: IRIS Audit Calculator
+
 on:
   push:
+    branches: ["main"]
     paths:
-      - 'referentiel/**' # Se déclenche dès que tu modifies un CSV (LAV10, etc.)
+      - 'moteur/**' # Ne se lance que si les scripts de calcul changent
+  workflow_dispatch:
+
+concurrency:
+  group: "iris-audit"
+  cancel-in-progress: true
 
 jobs:
   audit:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-      - name: Lancer l'analyse IRIS
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Audit
         run: |
-          python moteur/audit_performance.py
+          python moteur/calcul_stats.py
+          
+      - name: Save Results
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Calcul Audit auto [skip ci]" || exit 0
+          git push
