@@ -1,12 +1,24 @@
 name: IRIS Prime Engine
+
 on:
-  schedule:
-    - cron: '0 * * * *' # Tourne toutes les heures
-  workflow_dispatch:      # Permet de le lancer manuellement d'un clic
+  push:
+    branches: ["main"]
+    paths:
+      - 'index.html'
+      - 'chauffeur.html'
+  workflow_dispatch:
+
+# Empêche les exécutions en boucle si le bot écrit sur le dépôt
+concurrency:
+  group: "iris-deploy"
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # CONDITION CRUCIALE : On ne lance pas le script si c'est le bot qui a écrit le dernier message
+    if: github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, 'Mise à jour automatique')
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -26,8 +38,9 @@ jobs:
 
       - name: Commit and Push changes
         run: |
-          git config --global user.name "IRIS-Bot"
-          git config --global user.email "iris-bot@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Mise à jour automatique - Audit SRIG 2025" || exit 0
+          # On ajoute [skip ci] dans le message pour dire à GitHub de NE PAS relancer d'action
+          git commit -m "Mise à jour automatique - Audit SRIG 2025 [skip ci]" || exit 0
           git push
